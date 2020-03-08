@@ -159,9 +159,8 @@ map <- tm_basemap(leaflet::providers$OpenStreetMap) +
               breaks = c(1, 10, 100, 1000, 80000, Inf)) +
   tm_text("total_confirmed", size = "AREA")
 
-map_leaflet <- tmap_leaflet(map)
-
 # show leaflet
+map_leaflet <- tmap_leaflet(map)
 map_leaflet
 
 # cleanup
@@ -511,7 +510,7 @@ ggplotly(p, tooltip = c("text")) %>%
 Raw Data
 ===================================== 
 
-### Chart A
+### 
 
 ```{r}
 DT::datatable(corona_cases, options = list(
