@@ -3,7 +3,7 @@ Readme
 
 ## Dashboard
 
-Visit [COVID-19 dashboard](Dashboard/flexdashboard.html) based on
+Visit [COVID-19 dashboard](dashboard/flexdashboard.html) based on
 flexdashboard R package
 
 ## R Scripts
