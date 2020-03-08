@@ -3,9 +3,10 @@ COVID-19 Dashboard
 
 ## Dashboard
 
-Visit [COVID-19 dashboard](dashboard/flexdashboard.html) based on
-flexdashboard R package. Updates to Corona virus figures are fed into
-the dashboard via the [coronavirus R
+Visit [COVID-19
+dashboard](https://bydata.github.io/covid-19/dashboard/flexdashboard.html)
+based on flexdashboard R package. Updates to Corona virus figures are
+fed into the dashboard via the [coronavirus R
 package](https://www.github.com/RamiKrispin/coronavirus) by [Rami
 Krispin](https://www.github.com/RamiKrispin/).
 
