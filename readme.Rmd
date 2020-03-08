@@ -9,7 +9,11 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Dashboard
 
+<<<<<<< HEAD
 Visit my [COVID-19 dashboard](https://bydata.github.io/covid-19/dashboard/flexdashboard.html) based on the flexdashboard R package. Updates to Corona virus figures are fed into the dashboard via the [coronavirus R package](https://www.github.com/RamiKrispin/coronavirus) by [Rami Krispin](https://www.github.com/RamiKrispin/).
+=======
+Visit [COVID-19 dashboard](https://bydata.github.io/covid-19/dashboard/flexdashboard.html) based on flexdashboard R package. Updates to Corona virus figures are fed into the dashboard via the [coronavirus R package](https://www.github.com/RamiKrispin/coronavirus) by [Rami Krispin](https://www.github.com/RamiKrispin/).
+>>>>>>> 140db403c7ae1b642a6be5f6a349464321f57e5e
 
 ## Motivation
 
