@@ -95,10 +95,10 @@ continents <- World %>%
 ```
 
 
-Overview
+Overview {data-orientation=rows}
 =====================================  
 
-Column {data-width=650}
+Row {data-height=850}
 -----------------------------------------------------------------------
 
 ###
@@ -152,7 +152,7 @@ tmap_mode("view")
 map <- tm_basemap(leaflet::providers$OpenStreetMap) +
   tm_shape(World_corona, name = "geometry") +
   #tm_view(text.size.variable = TRUE, set.view = 2, set.bounds = c(-179, 180, 80, -65)) +
-  tm_view(text.size.variable = TRUE, set.view = 2) +
+  tm_view(text.size.variable = TRUE, set.view = 3) +
   tm_polygons("total_confirmed", id = "name", 
               popup.vars = c("Confirmed Cases:" = "total_confirmed"),
               textNA = "No cases", title = "Confirmed Cases", 
@@ -169,7 +169,7 @@ rm(list = c("World", "World_corona"))
 
 ```
 
-Column {data-width=350}
+Row {data-height=150}
 -----------------------------------------------------------------------
 
 ### Confirmed Cases
@@ -282,18 +282,6 @@ Confirmed Cases {#confirmed}
 Column {data-width=600, .tabset}
 -----------------------------------------------------------------------
 
-### Worldwide
-
-```{r}
-corona_cases_world_day %>% 
-  ggplot(aes(date, cumul_confirmed)) +
-  geom_line(size = 1.5) +
-  geom_area(alpha = 0.05) +
-  labs(x = NULL, y = NULL) +
-  theme_minimal()
-
-```
-
 ### Increase of Confirmed Cases by Country 
 
 ```{r echo=FALSE}
@@ -331,6 +319,19 @@ p <- corona_cases_country_day %>%
 ggplotly(p, tooltip = c("text"))
 
 ```
+
+### Worldwide
+
+```{r}
+corona_cases_world_day %>% 
+  ggplot(aes(date, cumul_confirmed)) +
+  geom_line(size = 1.5) +
+  geom_area(alpha = 0.05) +
+  labs(x = NULL, y = NULL) +
+  theme_minimal()
+
+```
+
 
 
 ### Trends over Time
