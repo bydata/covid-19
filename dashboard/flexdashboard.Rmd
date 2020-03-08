@@ -441,7 +441,7 @@ p <- tidy_germany %>%
   coord_map() +
   #scale_fill_distiller(palette = "Reds", direction = 1) +
   scale_fill_gradient(low = rgb(255, 255, 155, maxColorValue = 255), high = rgb(183, 66, 2, maxColorValue = 255)) +
-  labs(fill = "Confirmed Cases", caption = "Source: Robert-Koch-Institut (RKI), Germany") +
+  labs(fill = "Confirmed Cases") +
   theme_void() +
   theme(legend.direction = "horizontal", legend.position = "bottom", legend.key.height = unit(2, units = "mm"))
 
