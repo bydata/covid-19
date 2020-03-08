@@ -1,0 +1,513 @@
+---
+title: "COVID-19 Dashboard"
+output: 
+  flexdashboard::flex_dashboard:
+    theme: bootstrap
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = FALSE)
+
+library(flexdashboard)
+library(DT)
+devtools::install_github("RamiKrispin/coronavirus")
+library(coronavirus)
+library(tidyverse)
+library(lubridate)
+library(sf)
+#library(ggmap)
+#library(osmdata)
+library(maps)
+library(mapproj)
+library(leaflet)
+library(plotly)
+
+data("coronavirus")
+
+library(tmap)
+data("World")
+
+```
+
+```{r datasets, include=FALSE}
+coronavirus <- coronavirus %>% 
+  # merge China
+  mutate(Country.Region = ifelse(
+    Country.Region %in% c("Mainland China", "Macau", "Hong Kong"),
+    "China", Country.Region))
+
+# confirmed cases latest update
+corona_confirmed_cases <- coronavirus %>% 
+  filter(type == "confirmed") %>% 
+  group_by(Country.Region) %>% 
+  summarize(total_confirmed = sum(cases))
+
+# cases latest update
+corona_cases <- coronavirus %>% 
+  group_by(type, Country.Region) %>%
+  summarize(cases = sum(cases)) %>% 
+  spread(key = type, value = cases) %>% 
+  mutate_all(~ replace_na(., 0)) %>% 
+  ungroup()
+
+# cases overall
+corona_overall <- coronavirus %>% 
+  group_by(type) %>% 
+  summarize(cases = sum(cases))
+
+max_date <- max(coronavirus$date)
+corona_cases_country_day <- coronavirus %>% 
+  group_by(Country.Region, type, date) %>% 
+  summarize(cases = sum(cases)) %>% 
+  arrange(date, .by_group = TRUE) %>% 
+  mutate(cumul_cases = cumsum(cases)) %>%
+  # add missing days by country (missing day = no new cases reported)- start with min(date) per country
+  complete(date = seq.Date(min(date), max_date, by = "day")) %>% 
+  # fill empty values for newly created days with the succeeding number of cases
+  fill(cumul_cases) %>% 
+  # replace NA with 0
+  mutate(cumul_cases = replace_na(cumul_cases, 0)) %>% 
+  ungroup() 
+
+corona_cases_world_day <- coronavirus %>% 
+  filter(type == "confirmed") %>% 
+  group_by(date) %>% 
+  summarize(cases = sum(cases)) %>% 
+  arrange(date) %>% 
+  mutate(cumul_confirmed = cumsum(cases))
+
+continents <- World %>% 
+  mutate(name = as.character(name),
+         name2 = case_when(name == "United States" ~ "US",
+           name == "Czech Rep." ~ "Czech Republic",
+           name == "Dominican Rep." ~ "Dominican Republic",
+           name == "Macedonia" ~ "North Macedonia",
+           name == "Korea" ~ "South Korea",
+           name == "Bosnia and Herz." ~ "Bosnia and Herzegovina",
+           name == "United Kingdom" ~ "UK",
+           TRUE ~ name)) %>% 
+  select(name, name2, continent)
+
+```
+
+
+Overview
+=====================================  
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+###
+
+```{r}
+
+# check for non-overlapping country names
+check_missing_countries <- corona_confirmed_cases %>%
+  anti_join(World %>%
+              mutate(name = as.character(name),
+              name2 = case_when(
+                name == "United States" ~ "US",
+                name == "Czech Rep." ~ "Czech Republic",
+                name == "Dominican Rep." ~ "Dominican Republic",
+                name == "Macedonia" ~ "North Macedonia",
+                name == "Korea" ~ "South Korea",
+                name == "Bosnia and Herz." ~ "Bosnia and Herzegovina",
+                name == "United Kingdom" ~ "UK",
+                TRUE ~ name)),
+            by = c("Country.Region" = "name2"))
+# check_missing_countries
+
+# Countries missing from World dataset: 
+## Andorra
+## Bahrain
+## Faroe Islands
+## Gibraltar
+## Liechtenstein
+## Monaco
+## Palestine
+## St. Barthelemy
+## San Marino
+## Singapore
+## Vatican City
+
+World_corona <- World %>% 
+  mutate(name = as.character(name),
+         name2 = case_when(
+    name == "United States" ~ "US",
+    name == "Czech Rep." ~ "Czech Republic",
+    name == "Dominican Rep." ~ "Dominican Republic",
+    name == "Macedonia" ~ "North Macedonia",
+    name == "Korea" ~ "South Korea",
+    name == "Bosnia and Herz." ~ "Bosnia and Herzegovina",
+    name == "United Kingdom" ~ "UK",
+    TRUE ~ name)) %>% 
+  left_join(corona_confirmed_cases, by = c("name2" = "Country.Region")) %>% 
+  sf::st_sf()
+
+tmap_mode("view")
+map <- tm_basemap(leaflet::providers$OpenStreetMap) +
+  tm_shape(World_corona, name = "geometry") +
+  #tm_view(text.size.variable = TRUE, set.view = 2, set.bounds = c(-179, 180, 80, -65)) +
+  tm_view(text.size.variable = TRUE, set.view = 2) +
+  tm_polygons("total_confirmed", id = "name", 
+              popup.vars = c("Confirmed Cases:" = "total_confirmed"),
+              textNA = "No cases", title = "Confirmed Cases", 
+              breaks = c(1, 10, 100, 1000, 80000, Inf)) +
+  tm_text("total_confirmed", size = "AREA")
+
+map_leaflet <- tmap_leaflet(map)
+
+# show leaflet
+map_leaflet
+```
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Confirmed Cases
+
+```{r}
+confirmed_cases <- corona_overall %>% filter(type == "confirmed") %>% pull(cases)
+valueBox(scales::number(confirmed_cases), icon = "fa-file-medical")
+```
+
+### Recovered
+
+```{r}
+recovered <- corona_overall %>% filter(type == "recovered") %>% pull(cases)
+valueBox(scales::number(recovered), icon = "fa-heart")
+```
+
+### Deaths
+
+```{r}
+deaths <- corona_overall %>% filter(type == "death") %>% pull(cases)
+valueBox(scales::number(deaths), 
+         icon = "fa-times",
+         color = ifelse(deaths > 10, "warning", "primary"),
+         href = "#mortality")
+```
+
+### Increase Worldwide
+
+```{r}
+increase_worldwide <- corona_cases_country_day %>% 
+  filter(type == "confirmed") %>% 
+  filter(date >= max(date) - 1) %>% 
+  group_by(date) %>% 
+  summarize(cumul_cases = sum(cumul_cases)) %>% 
+  mutate(prev_day = lag(cumul_cases),
+         diff = cumul_cases - prev_day,
+         increase = diff / prev_day) %>% 
+  filter(date == max(date)) %>% 
+  pull(increase)
+
+valueBox(scales::percent(increase_worldwide, accuracy = 1.1), 
+         icon = "fa-percent",
+         href = "#confirmed")
+```
+
+
+```{r}
+cases_threshold <- 20
+increase_country_max <- corona_cases_country_day %>% 
+  filter(type == "confirmed") %>% 
+  filter(date >= max(date) - 1) %>%
+  filter(cumul_cases >= cases_threshold) %>% 
+  group_by(Country.Region, date) %>% 
+  summarize(cumul_cases = sum(cumul_cases)) %>% 
+  # keep only if 2 previous and current day have at least {cases_threshold} cases
+  filter(n() > 1) %>% 
+  mutate(prev_day = lag(cumul_cases),
+         diff = cumul_cases - prev_day,
+         increase = diff / prev_day) %>% 
+  filter(date == max(date)) %>% 
+  # include only cases with a certain amount of cases on prev day
+  
+  ungroup() %>% 
+  arrange(-increase) %>% 
+  slice(1)
+
+country_highest_increase_confirmed <- pull(increase_country_max, Country.Region)
+
+```
+
+### `r country_highest_increase_confirmed` (Highest Increase)
+
+``` {r}
+valueBox(scales::percent(pull(increase_country_max, increase), accuracy = 1.1), 
+         icon = "fa-percent", href="#confirmed")
+```
+
+
+```{r inclde=FALSE}
+plot_country_trend <- function(x, which_type = c("confirmed", "death", "recovered"), plot_type = c("line", "lollipop")) {
+  if (plot_type == "line") {
+    corona_cases_country_day %>% 
+      filter(type == which_type) %>% 
+      filter(Country.Region == x) %>% 
+      ggplot(aes(date, cumul_cases)) +
+      geom_line(size = 1) +
+      geom_area(alpha = 0.05) +
+      labs(x = NULL, y = NULL) +
+      theme_minimal()
+  } else if (plot_type == "lollipop") {
+     corona_cases_country_day %>% 
+      filter(type == which_type) %>% 
+      filter(Country.Region == x) %>% 
+      ggplot(aes(date, cumul_cases)) +
+      geom_point(size = 2) +
+      geom_segment(aes(x = date, xend = date, y = 1, yend = cumul_cases))+
+      #geom_text(aes(label = scales::number(cumul_cases, accuracy = 1)), size = 3, col = "grey40", vjust = -1) +
+      labs(x = NULL, y = NULL) +
+      theme_minimal()
+  }
+}
+
+```
+
+
+
+Confirmed Cases {#confirmed}
+=====================================  
+
+Column {data-width=600, .tabset}
+-----------------------------------------------------------------------
+
+### Worldwide
+
+```{r}
+corona_cases_world_day %>% 
+  ggplot(aes(date, cumul_confirmed)) +
+  geom_line(size = 1.5) +
+  geom_area(alpha = 0.05) +
+  labs(x = NULL, y = NULL) +
+  theme_minimal()
+
+```
+
+### Increase of Confirmed Cases by Country 
+
+```{r echo=FALSE}
+p <- corona_cases_country_day %>% 
+  filter(type == "confirmed") %>% 
+  filter(date >= max(date) - 1) %>%
+  group_by(Country.Region, date) %>% 
+  summarize(cumul_cases = sum(cumul_cases)) %>% 
+  mutate(prev_day = lag(cumul_cases),
+         diff = cumul_cases - prev_day,
+         increase = diff / prev_day) %>% 
+  filter(date == max(date)) %>% 
+  # include only cases with a certain amount of cases on prev day
+  ungroup() %>% 
+  left_join(World_corona, by = c("Country.Region" = "name2")) %>% 
+  mutate(continent = as.character(continent),
+    continent = case_when(
+    Country.Region == "Bahrain" ~ "Asia",
+    Country.Region == "San Marino" ~ "Europe",
+    Country.Region == "Singapore" ~ "Asia",
+    TRUE ~ continent
+  )) %>% 
+  filter(!is.na(continent)) %>% 
+  ggplot(aes(cumul_cases, increase, group = Country.Region)) +
+  geom_point(aes(size = log(cumul_cases), col = continent, 
+                 text = sprintf("<b>%s</b>\nCases: %d\nIncrease: %s", 
+                                Country.Region, cumul_cases, scales::percent(increase, accuracy = 1.1))
+                 ), alpha = 0.5) +
+  scale_x_log10(labels = scales::number) +
+  scale_y_log10(labels = scales::percent_format(accuracy = 1)) +
+  labs(x = "Confirmed Cases (log10)", y = "Previous Day Increase (log10)",
+       col = "Continent", size = "Confirmed Cases (log)") +
+  theme_minimal()
+
+ggplotly(p, tooltip = c("text"))
+
+```
+
+
+### Trends over Time
+
+![](../plots/corona_cases_over_time.gif)
+
+
+
+Column {data-width=400, .tabset}
+-----------------------------------------------------------------------
+
+### `r country_highest_increase_confirmed` {#confirmed_highest_increase}
+
+```{r}
+plot_country_trend(pull(increase_country_max, Country.Region), "confirmed", "lollipop") +
+  labs(title = sprintf("%s has the highest increase in confirmed cases since yesterday", country_highest_increase_confirmed),
+       caption = sprintf("Among countries with at least %d cases the day before.", cases_threshold))
+```
+
+
+### Germany 
+
+```{r}
+plot_country_trend("Germany", "confirmed", "lollipop")
+```
+
+### Italy
+
+```{r}
+plot_country_trend("Italy", "confirmed", "lollipop")
+```
+
+### China
+
+```{r}
+plot_country_trend("China", "confirmed", "lollipop")
+```
+
+### Iran
+
+```{r}
+plot_country_trend("Iran", "confirmed", "lollipop")
+```
+
+### South Korea
+
+```{r}
+plot_country_trend("South Korea", "confirmed", "lollipop")
+```
+
+### USA
+
+```{r}
+plot_country_trend("US", "confirmed", "lollipop")
+```
+
+
+
+
+
+Confirmed Cases Germany
+===================================== 
+
+Column {data-width=600}
+-----------------------------------------------------------------------
+
+### 
+
+```{r echo=FALSE, include=FALSE}
+# Inspiration: https://toscano84.github.io/2018/07/using-r-to-analyse-the-german-federal-election/
+
+library(rgdal)
+
+# load RKI data for German federal states
+rki_germany <- read_rds("../output/rki_germany.RData")
+# use latest element from list
+rki_germany <- rki_germany[[length(rki_germany)]][["table"]]
+rki_germany <- rki_germany %>% 
+  mutate(Bundesland = ifelse(Bundesland == "Schleswig Holstein", "Schleswig-Holstein", Bundesland))
+
+# load and unzip shape file (https://gadm.org/download_country_v3.html)
+de_shapefile_url <- "https://biogeo.ucdavis.edu/data/gadm3.6/shp/gadm36_DEU_shp.zip"
+de_shapefile_zip <- "../input/de_shape.zip"
+de_shapefile_folder <- "../input/de_shape"
+if (!file.exists(de_shapefile_zip)) {
+  download.file(de_shapefile_url, de_shapefile_zip)
+}
+unzip(de_shapefile_zip, exdir = "../input/de_shapefile")
+shape_germany <- readOGR(dsn = "../input/de_shapefile", layer = "gadm36_DEU_1", use_iconv = TRUE, encoding = "UTF-8") 
+
+# create a tidy dataframe from shape file and join RKI data
+tidy_germany <- broom::tidy(shape_germany) %>% 
+  left_join(shape_germany@data %>% rownames_to_column(var = "rowname"), by = c("id" = "rowname")) %>% 
+  left_join(rki_germany, 
+            by = c("NAME_1" = "Bundesland")) %>% 
+  mutate(cases = replace_na(cases, 0))
+```
+
+```{r echo=FALSE}
+# plot confirmed cases on German map
+p <- tidy_germany %>% 
+  ggplot(aes(x = long, y = lat, group = group)) +
+  geom_polygon(aes(fill = cases, 
+                   text = sprintf("<b>%s</b>\nConfirmed Cases: %d", NAME_1, cases)), col = "grey70") +
+  geom_polygon(data = filter(tidy_germany, (as.character(NAME_1) %in% c("Bremen", "Berlin"))), 
+               aes(fill = cases, 
+                   text = sprintf("<b>%s</b>\nConfirmed Cases: %d", NAME_1, cases))) +
+  coord_map() +
+  #scale_fill_distiller(palette = "Reds", direction = 1) +
+  scale_fill_gradient(low = rgb(255, 255, 155, maxColorValue = 255), high = rgb(183, 66, 2, maxColorValue = 255)) +
+  labs(fill = "Confirmed Cases", caption = "Source: Robert-Koch-Institut (RKI), Germany") +
+  theme_void() +
+  theme(legend.direction = "horizontal", legend.position = "bottom", legend.key.height = unit(2, units = "mm"))
+
+#ggplotly(p, tooltip = c("text"))
+p
+```
+
+
+Column {data-width=400, data-height=600}
+-----------------------------------------------------------------------
+
+### 
+
+```{r}
+DT::datatable(rki_germany, options = list(
+  pageLength = 16,
+  bPaginate = FALSE))
+```
+
+Mortality {#mortality}
+=====================================  
+
+### Mortality Rates and Confirmed Cases by Country
+
+```{r echo=FALSE}
+
+p <- corona_cases_country_day %>% 
+  filter(type %in% c("confirmed", "death")) %>% 
+  filter(date == max(date)) %>%
+  select(-cases) %>% 
+  spread(key = type, value = cumul_cases) %>% 
+  mutate(death = replace_na(death, 0),
+         mortality = death / confirmed) %>% 
+  # at least n cases
+  filter(confirmed >= 100) %>% 
+  left_join(continents, by = c("Country.Region" = "name2")) %>% 
+  mutate(continent = as.character(continent),
+    continent = case_when(
+    Country.Region == "Bahrain" ~ "Asia",
+    Country.Region == "San Marino" ~ "Europe",
+    Country.Region == "Singapore" ~ "Asia",
+    TRUE ~ continent
+  )) %>% 
+  ggplot(aes(confirmed, mortality, group = Country.Region)) +
+  geom_point(size = 5, alpha = 0.5,
+             aes(col = continent, 
+             text = sprintf("<b>%s</b>\nConfirmed Cases: %d\nDeaths: %s", 
+                                Country.Region, confirmed, death))) +
+  annotate("text", x = 10000, y = 0.001, size = 4, hjust = "left",
+           label = "Instead of actual mortality rates this plot at least partly indicates\nhow extensively testing is available in each country.") +
+  scale_x_log10(label = scales::number_format(accuracy = 1)) +
+  scale_y_continuous(label = scales::percent_format(accuracy = 1)) +
+  labs(caption = "Only countries with at least 100 confirmed cases displayed.",
+       x = "Confirmed Cases (log10)", y = "Mortality",
+       col = "Continent") +
+  theme_minimal()
+  
+  
+ggplotly(p, tooltip = c("text")) %>% 
+  # ggplotly ignores text-alignment from ggplot object
+  style(textposition = "right")
+
+```
+
+
+Raw Data
+===================================== 
+
+### Chart A
+
+```{r}
+DT::datatable(corona_cases, options = list(
+  bPaginate = TRUE))
+```
