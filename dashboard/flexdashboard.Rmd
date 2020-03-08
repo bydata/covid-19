@@ -5,6 +5,7 @@ output:
     theme: bootstrap
     orientation: columns
     vertical_layout: fill
+    self_contained: false
 ---
 
 ```{r setup, include=FALSE}
@@ -162,6 +163,10 @@ map_leaflet <- tmap_leaflet(map)
 
 # show leaflet
 map_leaflet
+
+# cleanup
+rm(list = c("World", "World_corona"))
+
 ```
 
 Column {data-width=350}
@@ -303,7 +308,7 @@ p <- corona_cases_country_day %>%
   filter(date == max(date)) %>% 
   # include only cases with a certain amount of cases on prev day
   ungroup() %>% 
-  left_join(World_corona, by = c("Country.Region" = "name2")) %>% 
+  left_join(continents, by = c("Country.Region" = "name2")) %>% 
   mutate(continent = as.character(continent),
     continent = case_when(
     Country.Region == "Bahrain" ~ "Asia",
