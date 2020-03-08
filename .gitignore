@@ -1,0 +1,10 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+.Rproj
+corona.Rproj
+input/de_shapefile
+input/de_shape.zip
+Dashboard/flexdashboard_cache
+Dashboard/flexdashboard_files
