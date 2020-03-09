@@ -44,3 +44,7 @@ clicking on legend elements, zooming),
     (RKI)
   - Shape files World: tmap R package
   - Shape files Germany: <https://gadm.org/download_country_v3.html>
+
+## Latest Update
+
+9 March 2020
