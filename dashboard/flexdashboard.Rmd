@@ -164,7 +164,7 @@ map_leaflet <- tmap_leaflet(map)
 map_leaflet
 
 # cleanup
-rm(list = c("World", "World_corona"))
+#rm(list = c("World", "World_corona"))
 
 ```
 
@@ -220,6 +220,7 @@ cases_threshold <- 20
 increase_country_max <- corona_cases_country_day %>% 
   filter(type == "confirmed") %>% 
   filter(date >= max(date) - 1) %>%
+  # include only cases with a certain amount of cases on prev day
   filter(cumul_cases >= cases_threshold) %>% 
   group_by(Country.Region, date) %>% 
   summarize(cumul_cases = sum(cumul_cases)) %>% 
@@ -229,8 +230,6 @@ increase_country_max <- corona_cases_country_day %>%
          diff = cumul_cases - prev_day,
          increase = diff / prev_day) %>% 
   filter(date == max(date)) %>% 
-  # include only cases with a certain amount of cases on prev day
-  
   ungroup() %>% 
   arrange(-increase) %>% 
   slice(1)
@@ -242,13 +241,13 @@ country_highest_increase_confirmed <- pull(increase_country_max, Country.Region)
 ### `r country_highest_increase_confirmed` (Highest Increase)
 
 ``` {r}
-valueBox(scales::percent(pull(increase_country_max, increase), accuracy = 1.1), 
+valueBox(scales::percent(pull(increase_country_max, increase), accuracy = 1.0), 
          icon = "fa-percent", href="#confirmed")
 ```
 
 
 ```{r inclde=FALSE}
-plot_country_trend <- function(x, which_type = c("confirmed", "death", "recovered"), plot_type = c("line", "lollipop")) {
+plot_country_trend <- function(x, which_type = c("confirmed", "death", "recovered"), plot_type = c("line", "lollipop", "combined")) {
   if (plot_type == "line") {
     corona_cases_country_day %>% 
       filter(type == which_type) %>% 
@@ -268,6 +267,27 @@ plot_country_trend <- function(x, which_type = c("confirmed", "death", "recovere
       #geom_text(aes(label = scales::number(cumul_cases, accuracy = 1)), size = 3, col = "grey40", vjust = -1) +
       labs(x = NULL, y = NULL) +
       theme_minimal()
+  } else if (plot_type == "combined" & which_type == "confirmed") {
+    p <- corona_cases_country_day %>% 
+      filter(type == "confirmed") %>% 
+      filter(Country.Region == x) %>%
+      mutate(cases = replace_na(cases, 0)) %>% 
+      ggplot(aes(date)) +
+      geom_area(aes(y = cumul_cases), alpha = 0.05) +
+      geom_line(aes(y = cumul_cases, col = "Cumulative Cases",
+                   text = sprintf("<b>Cumulative Cases</b>\n%s\n%d", date, cumul_cases)),
+                size = 1.2, group = 1) +
+      geom_col(aes(y = cases, fill = "New Cases",
+                   text = sprintf("<b>New Cases</b>\n%s\n%d", date, cases))) +
+      scale_fill_manual(name = "", values = c("New Cases" = scales::hue_pal()(2)[2])) +
+      scale_color_manual(name = "", values = c("Cumulative Cases" = "black")) +
+      labs(x = NULL, y = NULL) +
+      theme_minimal() +
+      theme(legend.position = "bottom")
+    
+    ggplotly(p, tooltip = c("text")) %>%
+      # for horizontal legend since ggplotly ignores ggplots legend settings
+      layout(legend = list(orientation = "h"))
   }
 }
 
@@ -307,7 +327,7 @@ p <- corona_cases_country_day %>%
   ggplot(aes(cumul_cases, increase, group = Country.Region)) +
   geom_point(aes(size = log(cumul_cases), col = continent, 
                  text = sprintf("<b>%s</b>\nCases: %d\nIncrease: %s", 
-                                Country.Region, cumul_cases, scales::percent(increase, accuracy = 1.1))
+                                Country.Region, cumul_cases, scales::percent(increase, accuracy = 1))
                  ), alpha = 0.5) +
   scale_x_log10(labels = scales::number) +
   scale_y_log10(labels = scales::percent_format(accuracy = 1)) +
@@ -322,12 +342,26 @@ ggplotly(p, tooltip = c("text"))
 ### Worldwide
 
 ```{r}
-corona_cases_world_day %>% 
-  ggplot(aes(date, cumul_confirmed)) +
-  geom_line(size = 1.5) +
-  geom_area(alpha = 0.05) +
-  labs(x = NULL, y = NULL) +
-  theme_minimal()
+
+p <- corona_cases_world_day %>% 
+      mutate(cases = replace_na(cases, 0)) %>% 
+      ggplot(aes(date)) +
+      geom_area(aes(y = cumul_confirmed), alpha = 0.05) +
+      geom_line(aes(y = cumul_confirmed, col = "Cumulative Cases",
+                   text = sprintf("<b>Cumulative Cases</b>\n%s\n%d", date, cumul_confirmed)),
+                size = 1.2, group = 1) +
+      geom_col(aes(y = cases, fill = "New Cases",
+                   text = sprintf("<b>New Cases</b>\n%s\n%d", date, cases))) +
+      scale_fill_manual(name = "", values = c("New Cases" = scales::hue_pal()(2)[2])) +
+      scale_color_manual(name = "", values = c("Cumulative Cases" = "black")) +
+      labs(x = NULL, y = NULL) +
+      theme_minimal() +
+      theme(legend.position = "bottom")
+    
+    ggplotly(p, tooltip = c("text")) %>%
+      # for horizontal legend since ggplotly ignores ggplots legend settings
+      layout(legend = list(orientation = "h"))
+
 
 ```
 
@@ -345,46 +379,45 @@ Column {data-width=400, .tabset}
 ### `r country_highest_increase_confirmed` {#confirmed_highest_increase}
 
 ```{r}
-plot_country_trend(pull(increase_country_max, Country.Region), "confirmed", "lollipop") +
-  labs(title = sprintf("%s has the highest increase in confirmed cases since yesterday", country_highest_increase_confirmed),
-       caption = sprintf("Among countries with at least %d cases the day before.", cases_threshold))
+max_increase_country <- pull(increase_country_max, Country.Region)
+plot_country_trend(max_increase_country, "confirmed", "combined")
 ```
 
 
 ### Germany 
 
 ```{r}
-plot_country_trend("Germany", "confirmed", "lollipop")
+plot_country_trend("Germany", "confirmed", "combined")
 ```
 
 ### Italy
 
 ```{r}
-plot_country_trend("Italy", "confirmed", "lollipop")
+plot_country_trend("Italy", "confirmed", "combined")
 ```
 
 ### China
 
 ```{r}
-plot_country_trend("China", "confirmed", "lollipop")
+plot_country_trend("China", "confirmed", "combined")
 ```
 
 ### Iran
 
 ```{r}
-plot_country_trend("Iran", "confirmed", "lollipop")
+plot_country_trend("Iran", "confirmed", "combined")
 ```
 
 ### South Korea
 
 ```{r}
-plot_country_trend("South Korea", "confirmed", "lollipop")
+plot_country_trend("South Korea", "confirmed", "combined")
 ```
 
 ### USA
 
 ```{r}
-plot_country_trend("US", "confirmed", "lollipop")
+plot_country_trend("US", "confirmed", "combined")
 ```
 
 
