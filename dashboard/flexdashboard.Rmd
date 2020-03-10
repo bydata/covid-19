@@ -456,9 +456,13 @@ Column {data-width=400, data-height=600}
 ### 
 
 ```{r}
-DT::datatable(rki_germany, options = list(
+
+rki_germany %>% 
+  rename(`Federal State` = 1, `Confirmed Cases` = 2, `Deaths` = 3, `High Risk Areas` = 4) %>% 
+DT::datatable( options = list(
   pageLength = 16,
   bPaginate = FALSE))
+
 ```
 
 Mortality {#mortality}

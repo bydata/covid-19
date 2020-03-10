@@ -47,4 +47,4 @@ clicking on legend elements, zooming),
 
 ## Latest Update
 
-9 March 2020
+2020-03-10

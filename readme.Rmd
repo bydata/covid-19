@@ -29,4 +29,8 @@ It's my first experiment with [flexdashboard](https://rmarkdown.rstudio.com/flex
 
 ## Latest Update
 
-9 March 2020
+```{r echo=FALSE, include=FALSE}
+current_date <- Sys.Date()
+```
+
+`r current_date`
