@@ -27,7 +27,11 @@ library(leaflet)
 library(plotly)
 
 data("coronavirus")
-
+dim(coronavirus)
+#coronavirus <- load("../input/coronavirus.rda") # %>%
+  #mutate(Country.Region = ifelse(Country.Region == "Iran (Islamic Republic of)", "Iran", Country.Region)) %>%
+  #mutate(Country.Region = ifelse(Country.Region == "Republic of Korea", "South Korea", Country.Region))
+  
 library(tmap)
 data("World")
 
@@ -37,8 +41,15 @@ data("World")
 coronavirus <- coronavirus %>% 
   # merge China
   mutate(Country.Region = ifelse(
-    Country.Region %in% c("Mainland China", "Macau", "Hong Kong"),
-    "China", Country.Region))
+    Country.Region %in% c("Mainland China", "Macau", "Hong Kong", "Macao SAR", "Hong Kong SAR"),
+    "China", Country.Region)) %>% 
+  mutate(Country.Region = ifelse(Country.Region == "Iran (Islamic Republic of)", "Iran", Country.Region)) %>%
+  mutate(Country.Region = ifelse(Country.Region == "Republic of Korea", "South Korea", Country.Region)) %>% 
+  mutate(Country.Region = ifelse(Country.Region == "Russian Federation", "Russia", Country.Region)) %>% 
+  mutate(Country.Region = ifelse(Country.Region == "Republic of Moldova", "Moldova", Country.Region)) %>% 
+  mutate(Country.Region = ifelse(Country.Region == "Taipei and environs", "Taiwan", Country.Region)) %>% 
+  mutate(Country.Region = ifelse(Country.Region == "Viet Nam", "Vietnam", Country.Region))
+  
 
 # confirmed cases latest update
 corona_confirmed_cases <- coronavirus %>% 
@@ -155,8 +166,8 @@ map <- tm_basemap(leaflet::providers$OpenStreetMap) +
   tm_view(text.size.variable = TRUE, set.view = 3) +
   tm_polygons("total_confirmed", id = "name", 
               popup.vars = c("Confirmed Cases:" = "total_confirmed"),
-              textNA = "No cases", title = "Confirmed Cases", 
-              breaks = c(1, 10, 100, 1000, 80000, Inf)) +
+              textNA = "No Confirmed Cases", title = "Confirmed Cases", 
+              breaks = c(1, 10, 100, 1000, 10000, 80000, Inf)) +
   tm_text("total_confirmed", size = "AREA")
 
 # show leaflet

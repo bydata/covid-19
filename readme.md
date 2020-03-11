@@ -41,10 +41,11 @@ clicking on legend elements, zooming),
     Coronavirus repository
   - Update-to-date statistics from German federal states: [Robert Koch
     Institut](https://www.rki.de/DE/Content/InfAZ/N/Neuartiges_Coronavirus/Fallzahlen.html)
-    (RKI)
+    (RKI) \[2020-03-11\] As of 10 March 2020, RKI does not regularly
+    update the number of cases on this page.
   - Shape files World: tmap R package
   - Shape files Germany: <https://gadm.org/download_country_v3.html>
 
 ## Latest Update
 
-2020-03-10
+2020-03-11
