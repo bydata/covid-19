@@ -9,18 +9,16 @@ page <- read_html(url)
 table <- page %>% 
   html_node(css = "table:nth_of_type(1)") %>% 
   html_table() %>% 
-  rename(cases = 2) %>% 
   # exclude totals
   filter(Bundesland != "Gesamt")
 
-# save and keep historical data
-if(!exists("rki_germany")) {
-  rki_germany <- list()
-} else {
-  rki_germany <- read_rds()
-}
-
-rki_germany <- append(rki_germany, list(list(retrieve_date = Sys.Date(), table = table)))
+# table format has changed as of 2020-03-12
+rki_germany <- table %>% 
+  select(1, 2, 4) %>% 
+  rename(cases = 2, risk_areas = 3) %>% 
+  separate(cases, sep = " ", into = c("confirmed_cases", "deaths")) %>% 
+  mutate(confirmed_cases = as.numeric(confirmed_cases),
+         deaths = str_replace_all(deaths, "[\\(\\)]", "") %>% as.numeric())
 
 write_rds(rki_germany, "output/rki_germany.RData")
 

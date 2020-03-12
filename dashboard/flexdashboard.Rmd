@@ -470,8 +470,6 @@ library(rgdal)
 
 # load RKI data for German federal states
 rki_germany <- read_rds("../output/rki_germany.RData")
-# use latest element from list
-rki_germany <- rki_germany[[length(rki_germany)]][["table"]]
 rki_germany <- rki_germany %>% 
   mutate(Bundesland = ifelse(Bundesland == "Schleswig Holstein", "Schleswig-Holstein", Bundesland))
 
@@ -490,7 +488,7 @@ tidy_germany <- broom::tidy(shape_germany) %>%
   left_join(shape_germany@data %>% rownames_to_column(var = "rowname"), by = c("id" = "rowname")) %>% 
   left_join(rki_germany, 
             by = c("NAME_1" = "Bundesland")) %>% 
-  mutate(cases = replace_na(cases, 0))
+  mutate(cases = replace_na(confirmed_cases, 0))
 ```
 
 ```{r echo=FALSE}
@@ -501,7 +499,7 @@ p <- tidy_germany %>%
                    text = sprintf("<b>%s</b>\nConfirmed Cases: %d", NAME_1, cases)), col = "grey70") +
   geom_polygon(data = filter(tidy_germany, (as.character(NAME_1) %in% c("Bremen", "Berlin"))), 
                aes(fill = cases, 
-                   text = sprintf("<b>%s</b>\nConfirmed Cases: %d", NAME_1, cases))) +
+                   text = sprintf("<b>%s</b>\nConfirmed Cases: %d", NAME_1, confirmed_cases))) +
   coord_map() +
   #scale_fill_distiller(palette = "Reds", direction = 1) +
   scale_fill_gradient(low = rgb(255, 255, 155, maxColorValue = 255), high = rgb(183, 66, 2, maxColorValue = 255)) +
