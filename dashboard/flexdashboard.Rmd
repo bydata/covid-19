@@ -19,8 +19,6 @@ library(coronavirus)
 library(tidyverse)
 library(lubridate)
 library(sf)
-#library(ggmap)
-#library(osmdata)
 library(maps)
 library(mapproj)
 library(leaflet)
@@ -28,9 +26,7 @@ library(plotly)
 
 data("coronavirus")
 dim(coronavirus)
-#coronavirus <- load("../input/coronavirus.rda") # %>%
-  #mutate(Country.Region = ifelse(Country.Region == "Iran (Islamic Republic of)", "Iran", Country.Region)) %>%
-  #mutate(Country.Region = ifelse(Country.Region == "Republic of Korea", "South Korea", Country.Region))
+coronavirus <- read_rds("../input/coronavirus.RData") 
   
 library(tmap)
 data("World")
@@ -44,11 +40,15 @@ coronavirus <- coronavirus %>%
     Country.Region %in% c("Mainland China", "Macau", "Hong Kong", "Macao SAR", "Hong Kong SAR"),
     "China", Country.Region)) %>% 
   mutate(Country.Region = ifelse(Country.Region == "Iran (Islamic Republic of)", "Iran", Country.Region)) %>%
-  mutate(Country.Region = ifelse(Country.Region == "Republic of Korea", "South Korea", Country.Region)) %>% 
+  mutate(Country.Region = ifelse(Country.Region %in% c("Republic of Korea", "Korea, South"), "South Korea", Country.Region)) %>% 
   mutate(Country.Region = ifelse(Country.Region == "Russian Federation", "Russia", Country.Region)) %>% 
   mutate(Country.Region = ifelse(Country.Region == "Republic of Moldova", "Moldova", Country.Region)) %>% 
-  mutate(Country.Region = ifelse(Country.Region == "Taipei and environs", "Taiwan", Country.Region)) %>% 
-  mutate(Country.Region = ifelse(Country.Region == "Viet Nam", "Vietnam", Country.Region))
+  mutate(Country.Region = ifelse(Country.Region %in% c("Taipei and environs", "Taiwan*"), "Taiwan", Country.Region)) %>% 
+  mutate(Country.Region = ifelse(Country.Region == "Viet Nam", "Vietnam", Country.Region)) %>% 
+  mutate(Country.Region = ifelse(Country.Region == "Congo (Kinshasa)", "Dem. Rep. Congo", Country.Region)) %>% 
+  mutate(Country.Region = ifelse(Country.Region == "Czechia", "Czech Republic", Country.Region)) %>% 
+  mutate(Country.Region = ifelse(Country.Region == "United Kingdom", "UK", Country.Region))
+  
   
 
 # confirmed cases latest update
@@ -162,7 +162,6 @@ World_corona <- World %>%
 tmap_mode("view")
 map <- tm_basemap(leaflet::providers$OpenStreetMap) +
   tm_shape(World_corona, name = "geometry") +
-  #tm_view(text.size.variable = TRUE, set.view = 2, set.bounds = c(-179, 180, 80, -65)) +
   tm_view(text.size.variable = TRUE, set.view = 3) +
   tm_polygons("total_confirmed", id = "name", 
               popup.vars = c("Confirmed Cases:" = "total_confirmed"),
@@ -206,7 +205,7 @@ valueBox(scales::number(deaths),
          href = "#mortality")
 ```
 
-### Increase Worldwide
+### Increase Cases Worldwide
 
 ```{r}
 increase_worldwide <- corona_cases_country_day %>% 
@@ -224,6 +223,27 @@ valueBox(scales::percent(increase_worldwide, accuracy = 1.1),
          icon = "fa-percent",
          href = "#confirmed")
 ```
+
+### Increase Cases Outside China
+
+```{r}
+increase_worldwide <- corona_cases_country_day %>% 
+  filter(type == "confirmed") %>% 
+  filter(Country.Region != "China") %>% 
+  filter(date >= max(date) - 1) %>% 
+  group_by(date) %>% 
+  summarize(cumul_cases = sum(cumul_cases)) %>% 
+  mutate(prev_day = lag(cumul_cases),
+         diff = cumul_cases - prev_day,
+         increase = diff / prev_day) %>% 
+  filter(date == max(date)) %>% 
+  pull(increase)
+
+valueBox(scales::percent(increase_worldwide, accuracy = 1.1), 
+         icon = "fa-percent",
+         href = "#confirmed")
+```
+
 
 
 ```{r}
