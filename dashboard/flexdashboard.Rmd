@@ -451,8 +451,18 @@ plot_country_trend("South Korea", "confirmed", "combined")
 plot_country_trend("US", "confirmed", "combined")
 ```
 
+### France
+
+```{r}
+plot_country_trend("France", "confirmed", "combined")
+```
 
 
+### Spain
+
+```{r}
+plot_country_trend("Spain", "confirmed", "combined")
+```
 
 
 Confirmed Cases Germany
