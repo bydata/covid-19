@@ -166,7 +166,7 @@ map <- tm_basemap(leaflet::providers$OpenStreetMap) +
   tm_polygons("total_confirmed", id = "name", 
               popup.vars = c("Confirmed Cases:" = "total_confirmed"),
               textNA = "No Confirmed Cases", title = "Confirmed Cases", 
-              breaks = c(1, 10, 100, 1000, 10000, 80000, Inf)) +
+              breaks = c(1, 10, 100, 1000, 10000, 20000, 80000, Inf)) +
   tm_text("total_confirmed", size = "AREA")
 
 # show leaflet
