@@ -5,7 +5,7 @@ library(coronavirus)
 library(tmap)
 
 data("coronavirus")
-#coronavirus <- read_rds("../input/coronavirus.RData") 
+coronavirus <- read_rds("../input/coronavirus.RData") 
 coronavirus <- coronavirus %>% 
   # merge China
   mutate(Country.Region = ifelse(

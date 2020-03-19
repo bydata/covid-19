@@ -26,7 +26,7 @@ library(plotly)
 
 data("coronavirus")
 dim(coronavirus)
-#coronavirus <- read_rds("../input/coronavirus.RData") 
+coronavirus <- read_rds("../input/coronavirus.RData") 
   
 library(tmap)
 data("World")
@@ -46,8 +46,11 @@ coronavirus <- coronavirus %>%
   mutate(Country.Region = ifelse(Country.Region %in% c("Taipei and environs", "Taiwan*"), "Taiwan", Country.Region)) %>% 
   mutate(Country.Region = ifelse(Country.Region == "Viet Nam", "Vietnam", Country.Region)) %>% 
   mutate(Country.Region = ifelse(Country.Region == "Congo (Kinshasa)", "Dem. Rep. Congo", Country.Region)) %>% 
+  mutate(Country.Region = ifelse(Country.Region == "Congo (Brazzaville)", "Congo", Country.Region)) %>% 
   mutate(Country.Region = ifelse(Country.Region == "Czechia", "Czech Republic", Country.Region)) %>% 
-  mutate(Country.Region = ifelse(Country.Region == "United Kingdom", "UK", Country.Region))
+  mutate(Country.Region = ifelse(Country.Region == "United Kingdom", "UK", Country.Region)) %>% 
+  mutate(Country.Region = ifelse(Country.Region == "Gambia, The", "Gambia", Country.Region)) %>% 
+  mutate(Country.Region = ifelse(Country.Region == "The Bahamas", "Bahamas", Country.Region))
   
   
 
@@ -100,6 +103,8 @@ continents <- World %>%
            name == "Korea" ~ "South Korea",
            name == "Bosnia and Herz." ~ "Bosnia and Herzegovina",
            name == "United Kingdom" ~ "UK",
+            name == "Eq. Guinea" ~ "Equatorial Guinea",
+            name == "Central African Rep." ~ "Central African Republic",
            TRUE ~ name)) %>% 
   select(name, name2, continent)
 
@@ -128,6 +133,8 @@ check_missing_countries <- corona_confirmed_cases %>%
                 name == "Korea" ~ "South Korea",
                 name == "Bosnia and Herz." ~ "Bosnia and Herzegovina",
                 name == "United Kingdom" ~ "UK",
+                name == "Eq. Guinea" ~ "Equatorial Guinea",
+                name == "Central African Rep." ~ "Central African Republic",
                 TRUE ~ name)),
             by = c("Country.Region" = "name2"))
 # check_missing_countries
@@ -155,6 +162,8 @@ World_corona <- World %>%
     name == "Korea" ~ "South Korea",
     name == "Bosnia and Herz." ~ "Bosnia and Herzegovina",
     name == "United Kingdom" ~ "UK",
+    name == "Eq. Guinea" ~ "Equatorial Guinea",
+    name == "Central African Rep." ~ "Central African Republic",
     TRUE ~ name)) %>% 
   left_join(corona_confirmed_cases, by = c("name2" = "Country.Region")) %>% 
   sf::st_sf()
