@@ -539,7 +539,7 @@ Column {data-width=400, data-height=600}
 ```{r}
 
 rki_germany %>% 
-  rename(`Federal State` = 1, `Confirmed Cases` = 2, `Deaths` = 3, `High Risk Areas` = 4) %>% 
+  rename(`Federal State` = 1, `Confirmed Cases` = 2, `Increase Previous Day` = 3, `Cases per 100k Inhabitants` = 4, `Deaths` = 5, `High Risk Areas` = 6) %>% 
 DT::datatable( options = list(
   pageLength = 16,
   bPaginate = FALSE))
@@ -571,16 +571,16 @@ p <- corona_cases_country_day %>%
     TRUE ~ continent
   )) %>% 
   ggplot(aes(confirmed, mortality, group = Country.Region)) +
-  geom_point(size = 5, alpha = 0.5,
-             aes(col = continent, 
+  geom_point(alpha = 0.5,
+             aes(col = continent, size = death,
              text = sprintf("<b>%s</b>\nConfirmed Cases: %d\nDeaths: %s", 
                                 Country.Region, confirmed, death))) +
-  annotate("text", x = 10000, y = 0.001, size = 4, hjust = "left",
+  annotate("text", x = 20000, y = 0.01, size = 3, hjust = "left",
            label = "Instead of actual mortality rates this plot at least partly indicates\nhow extensively testing is available in each country.") +
   scale_x_log10(label = scales::number_format(accuracy = 1)) +
   scale_y_continuous(label = scales::percent_format(accuracy = 1)) +
   labs(caption = "Only countries with at least 100 confirmed cases displayed.",
-       x = "Confirmed Cases (log10)", y = "Mortality",
+       x = "Confirmed Cases (log10)", y = "Mortality", size = "Deaths",
        col = "Continent") +
   theme_minimal()
   
