@@ -50,8 +50,7 @@ coronavirus <- coronavirus %>%
   mutate(Country.Region = ifelse(Country.Region == "Czechia", "Czech Republic", Country.Region)) %>% 
   mutate(Country.Region = ifelse(Country.Region == "United Kingdom", "UK", Country.Region)) %>% 
   mutate(Country.Region = ifelse(Country.Region == "Gambia, The", "Gambia", Country.Region)) %>% 
-  mutate(Country.Region = ifelse(Country.Region == "The Bahamas", "Bahamas", Country.Region))
-  
+  mutate(Country.Region = ifelse(Country.Region %in% c("Bahamas, The", "The Bahamas"), "Bahamas", Country.Region))
   
 
 # confirmed cases latest update
@@ -165,18 +164,18 @@ World_corona <- World %>%
     name == "Eq. Guinea" ~ "Equatorial Guinea",
     name == "Central African Rep." ~ "Central African Republic",
     TRUE ~ name)) %>% 
-  left_join(corona_confirmed_cases, by = c("name2" = "Country.Region")) %>% 
+  left_join(corona_cases, by = c("name2" = "Country.Region")) %>% 
   sf::st_sf()
 
 tmap_mode("view")
 map <- tm_basemap(leaflet::providers$OpenStreetMap) +
   tm_shape(World_corona, name = "geometry") +
   tm_view(text.size.variable = TRUE, set.view = 3) +
-  tm_polygons("total_confirmed", id = "name", 
-              popup.vars = c("Confirmed Cases:" = "total_confirmed"),
+  tm_polygons("confirmed", id = "name", 
+              popup.vars = c("Cases:" = "confirmed", "Deaths:" = "death", "Recovered" = "recovered"),
               textNA = "No Confirmed Cases", title = "Confirmed Cases", 
               breaks = c(1, 10, 100, 1000, 10000, 20000, 80000, Inf)) +
-  tm_text("total_confirmed", size = "AREA")
+  tm_text("confirmed", size = "AREA")
 
 # show leaflet
 map_leaflet <- tmap_leaflet(map)

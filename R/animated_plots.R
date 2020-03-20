@@ -4,7 +4,7 @@ devtools::install_github("RamiKrispin/coronavirus")
 library(coronavirus)
 library(tmap)
 
-data("coronavirus")
+#data("coronavirus")
 coronavirus <- read_rds("../input/coronavirus.RData") 
 coronavirus <- coronavirus %>% 
   # merge China
