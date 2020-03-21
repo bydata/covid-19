@@ -26,7 +26,7 @@ library(plotly)
 
 data("coronavirus")
 dim(coronavirus)
-coronavirus <- read_rds("../input/coronavirus.RData") 
+#coronavirus <- read_rds("../input/coronavirus.RData") 
   
 library(tmap)
 data("World")
