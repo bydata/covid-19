@@ -3,7 +3,7 @@ library(shiny)
 library(r2d3)
 library(tidyverse)
 library(DT)
-#devtools::install_github("RamiKrispin/coronavirus")
+devtools::install_github("RamiKrispin/coronavirus")
 library(coronavirus)
 library(tidyverse)
 library(lubridate)
@@ -34,10 +34,13 @@ body <- dashboardBody(
                       column(width = 2,
                              shinyWidgets::materialSwitch("relative", "Relative to population", 
                                                           value = FALSE, status = "primary")
-                      )
+                      ),
+                      column(width = 2,
+                             actionButton("animated_world_map", "Animate",icon = icon("play"))
+                             )
                     ),  
                     
-              
+              # show the world map
               leafletOutput("world_map")
            ),
            
@@ -119,38 +122,71 @@ server <- function(input, output, session) {
   
   # plot of 
   output$mortality_graph <- renderPlotly({
-    p <- corona_cases_country_day %>%
+    # p <- corona_cases_country_day %>%
+    #   filter(type %in% c("confirmed", "death")) %>%
+    #   #filter(date == max(date)) %>%
+    #   select(-cases) %>%
+    #   spread(key = type, value = cumul_cases) %>%
+    #   mutate(death = replace_na(death, 0),
+    #          mortality = death / confirmed) %>%
+    #   # at least n cases
+    #   filter(confirmed >= 100) %>%
+    #   ggplot(aes(confirmed, mortality, group = region)) +
+    #   geom_point(alpha = 0.5,
+    #              aes(
+    #                #col = continent, 
+    #                size = death,
+    #                text = sprintf("<b>%s</b>\nConfirmed Cases: %d\nDeaths: %s",
+    #                                   region, confirmed, death))) +
+    #   scale_x_log10(label = scales::number_format(accuracy = 1)) +
+    #   scale_y_continuous(label = scales::percent_format(accuracy = 1)) +
+    #   labs(caption = "Only countries with at least 100 confirmed cases displayed.",
+    #        x = "Confirmed Cases (log10)", y = "Mortality", size = "Deaths"
+    #        #col = "Continent"
+    #        ) +
+    #   theme_minimal()
+    # 
+    # ggplotly(p, tooltip = c("text"), frame = ~date) %>%
+    #   # layout(title = list(text = str_c("US State Population and Life Expectancy",
+    #   #                                   "<br>",
+    #   #                                   "<sup>",
+    #   #                                   "Instead of actual mortality rates this plot at least partly indicates\nhow extensively testing is available in each country.",
+    #   #                                   "</sup>")))
+    #   # ggplotly ignores text-alignment from ggplot object
+    #   style(textposition = "right")
+    # 
+    df <- corona_cases_country_day %>%
       filter(type %in% c("confirmed", "death")) %>%
-      filter(date == max(date)) %>%
+      #filter(date == max(date)) %>%
       select(-cases) %>%
       spread(key = type, value = cumul_cases) %>%
       mutate(death = replace_na(death, 0),
              mortality = death / confirmed) %>%
       # at least n cases
-      filter(confirmed >= 100) %>%
-      ggplot(aes(confirmed, mortality, group = region)) +
-      geom_point(alpha = 0.5,
-                 aes(
-                   #col = continent, 
-                   size = death,
-                   text = sprintf("<b>%s</b>\nConfirmed Cases: %d\nDeaths: %s",
-                                      region, confirmed, death))) +
-      scale_x_log10(label = scales::number_format(accuracy = 1)) +
-      scale_y_continuous(label = scales::percent_format(accuracy = 1)) +
-      labs(caption = "Only countries with at least 100 confirmed cases displayed.",
-           x = "Confirmed Cases (log10)", y = "Mortality", size = "Deaths"
-           #col = "Continent"
-           ) +
-      theme_minimal()
-  
-    ggplotly(p, tooltip = c("text")) %>%
-      # layout(title = list(text = str_c("US State Population and Life Expectancy",
-      #                                   "<br>",
-      #                                   "<sup>",
-      #                                   "Instead of actual mortality rates this plot at least partly indicates\nhow extensively testing is available in each country.",
-      #                                   "</sup>")))
-      # ggplotly ignores text-alignment from ggplot object
-      style(textposition = "right")
+      mutate(confirmed = ifelse(confirmed < 100, 0, confirmed),
+             mortality = ifelse(is.nan(mortality), 0, mortality),
+             mortality = ifelse(confirmed < 100, 0, mortality)) %>%
+      arrange(region, date)
+
+    df %>% plot_ly(
+      x = ~confirmed, 
+      y = ~mortality, 
+      size = ~death, 
+      #group = ~region,
+      #connectgaps = TRUE,
+      #color = ~continent, 
+      frame = ~date,
+      text = ~region, 
+      hoverinfo = "text",
+      type = "scatter",
+      mode = "markers"
+      ) %>% 
+      layout(
+        xaxis = list(
+          type = "log"
+        )
+      )
+    
   })
   
 }
