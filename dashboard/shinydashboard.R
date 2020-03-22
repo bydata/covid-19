@@ -15,7 +15,7 @@ library(plotly)
 library(shinyWidgets)
 
 body <- dashboardBody(
-  
+  tags$style(type="text/css", ".recalculating { opacity: 1.0; }"),
   fluidRow(
     tabBox(title = NULL,
            width = 12,
@@ -24,7 +24,9 @@ body <- dashboardBody(
                       column(width = 4,
                              sliderInput("date", label = "Select Date",
                                          min = min(coronavirus$date), max = max(coronavirus$date), 
-                                         value = max(coronavirus$date)),
+                                         value = max(coronavirus$date),
+                                         animate = animationOptions(interval = 100, loop = FALSE)
+                                         ),
                       ),
                       column(width = 4,
                              selectInput("type", "Size of Points",
@@ -34,10 +36,7 @@ body <- dashboardBody(
                       column(width = 2,
                              shinyWidgets::materialSwitch("relative", "Relative to population", 
                                                           value = FALSE, status = "primary")
-                      ),
-                      column(width = 2,
-                             actionButton("animated_world_map", "Animate",icon = icon("play"))
-                             )
+                      )
                     ),  
                     
               # show the world map
@@ -99,6 +98,7 @@ server <- function(input, output, session) {
   })
   
   observe({
+    
     # color points based on type of data
     if (input$type == "confirmed") {
       fill_color <- "#03F"
@@ -116,7 +116,7 @@ server <- function(input, output, session) {
       clearShapes() %>%
       addCircles(lng = ~long, lat = ~lat,
                  fillColor = fill_color, color = color,
-                  label = ~label, weight = 2, radius = ~cumul_cases * point_size_factor)
+                  label = ~label, weight = 1, radius = ~cumul_cases * point_size_factor)
   })
   
   
