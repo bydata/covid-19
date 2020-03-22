@@ -19,7 +19,7 @@ body <- dashboardBody(
   fluidRow(
     tabBox(title = NULL,
            width = 12,
-           tabPanel(title = "World Map",
+           tabPanel(title = "World",
               fluidRow(
                 column(width = 4,
                        sliderInput("date", label = "Select Date",
@@ -37,10 +37,22 @@ body <- dashboardBody(
                        shinyWidgets::materialSwitch("relative_to_pop", "Per 100,000 Inhabitants", 
                                                     value = FALSE, status = "primary")
                 )
-              ),  
-              
-            # show the world map
-            leafletOutput("world_map")
+              ), 
+              fluidRow(
+                tabBox(title = NULL,
+                       width = 12,
+                       tabPanel(title = "Map",
+                                # show the world map
+                                leafletOutput("world_map")
+                                
+                       ),
+                       
+                       tabPanel(title = "Raw Data",
+                                DTOutput("raw_data")
+                                
+                       )
+                       )
+              )
            ),
            
            tabPanel(title = "Countries",
@@ -69,11 +81,6 @@ body <- dashboardBody(
            
            tabPanel(title = "Mortality",
                     plotlyOutput("mortality_graph")
-           ),
-           
-           tabPanel(title = "Raw Data",
-                    DTOutput("raw_data")
-                    
            )
         
     )
@@ -201,13 +208,13 @@ server <- function(input, output, session) {
   
   reactive_country_plot <- reactive({
     # color points based on type of data
-    if (input$type == "confirmed") {
+    if (input$type_2 == "confirmed") {
       fill_color <- "#0033FF"
       point_size_factor <- 10
-    } else if (input$type == "death") {
+    } else if (input$type_2 == "death") {
       fill_color <- "orangered"
       point_size_factor <- 60
-    } else if (input$type == "recovered") {
+    } else if (input$type_2 == "recovered") {
       fill_color <- "green"
       point_size_factor <- 10
     }
