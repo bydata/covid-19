@@ -13,76 +13,99 @@ library(lubridate)
 library(leaflet)
 library(plotly)
 library(shinyWidgets)
+library(formattable)
 
 body <- dashboardBody(
-  tags$style(type="text/css", ".recalculating { opacity: 1.0; }"),
+  tags$style(type="text/css", ".recalculating { opacity: 1.0; }
+             * {font-family: Nunito Sans}
+             "),
   fluidRow(
     tabBox(title = NULL,
            width = 12,
            tabPanel(title = "World",
-              fluidRow(
-                column(width = 4,
-                       sliderInput("date", label = "Select Date",
-                                   min = min(coronavirus$date), max = max(coronavirus$date), 
-                                   value = max(coronavirus$date),
-                                   animate = animationOptions(interval = 100, loop = FALSE)
-                                   ),
-                ),
-                column(width = 4,
-                       selectInput("type", "Size of Points",
-                                   choices = c("Confirmed Cases" = "confirmed", "Deaths" = "death", "Recovered" = "recovered"), 
-                                   selected = "Confirmed Cases")
-                ),
-                column(width = 2,
-                       shinyWidgets::materialSwitch("relative_to_pop", "Per 100,000 Inhabitants", 
-                                                    value = FALSE, status = "primary")
-                )
-              ), 
-              fluidRow(
-                tabBox(title = NULL,
-                       width = 12,
-                       tabPanel(title = "Map",
-                                # show the world map
-                                leafletOutput("world_map")
-                                
-                       ),
-                       
-                       tabPanel(title = "Raw Data",
+                    fluidRow(
+                      column(width = 3,
+                             sliderInput("date", label = "Select Date",
+                                         min = min(coronavirus$date), max = max(coronavirus$date), 
+                                         value = max(coronavirus$date),
+                                         animate = animationOptions(interval = 100, loop = FALSE)
+                             ),
+                      ),
+                      column(width = 3,
+                             selectInput("type", "Size of Points",
+                                         choices = c("Confirmed Cases" = "confirmed", "Deaths" = "death"), 
+                                         selected = "Confirmed Cases"),
+                             shinyWidgets::materialSwitch("relative_to_pop", "Per 100,000 Inhabitants", 
+                                                          value = FALSE, status = "primary")
+                      ),
+                      # column(width = 2,
+                      #        shinyWidgets::materialSwitch("relative_to_pop", "Per 100,000 Inhabitants", 
+                      #                                     value = FALSE, status = "primary")
+                      # )
+                    ), 
+                    fluidRow(
+                      tags$head(tags$style(type = "text/css", "#world_map {height:600px !important;}
+                                                  #raw_data {height:600px !important;}
+                                                  ")),
+                      tabBox(title = NULL,
+                             width = 12,
+                             tabPanel(title = "Map",
+                                      # show the world map
+                                      leafletOutput("world_map")
+                                      
+                             ),
+                             
+                             tabPanel(title = "Raw Data",
                                 DTOutput("raw_data")
-                                
-                       )
-                       )
-              )
+                                      
+                             )
+                      )
+                    ),
+                    fluidRow(
+                      column(width = 12,
+                             valueBoxOutput(width = 3, "valueBox_confirmed_cases"),
+                             valueBoxOutput(width = 3, "valueBox_deaths"),
+                             #valueBoxOutput(width = 3, "valueBox_increase_worldwide"),
+                             valueBoxOutput(width = 3, "valueBox_increase_outside_china"),
+                             valueBoxOutput(width = 3, "valueBox_increase_highest_country")
+                      )
+                    )
            ),
            
            tabPanel(title = "Countries",
+                    tags$head(tags$style(type = "text/css", "#country_compare {height:700px !important;}")),
                     fluidRow(
-                      column(width = 4,
+                      column(width = 3,
                              sliderInput("date_2", label = "Select Date",
                                          min = min(coronavirus$date), max = max(coronavirus$date), 
                                          value = max(coronavirus$date),
                                          animate = animationOptions(interval = 500, loop = FALSE)
                              ),
                       ),
-                      column(width = 4,
+                      column(width = 3,
                              selectInput("type_2", "Choose Metric",
-                                         choices = c("Confirmed Cases" = "confirmed", "Deaths" = "death", "Recovered" = "recovered"), 
+                                         choices = c("Confirmed Cases" = "confirmed", "Deaths" = "death"), 
                                          selected = "Confirmed Cases")
                       ),
-                      column(width = 4,
-                        selectInput("country_2", "Select Country",
-                                    choices = "",
-                                    selected = "Germany")
+                      column(width = 3,
+                             selectInput("country_2", "Select Country",
+                                         choices = "",
+                                         selected = "Germany")
+                      ),
+                      column(width = 3,
+                             selectInput("country_2_compare", "Compare to",
+                                         choices = "",
+                                         selected = "Italy")
                       )
                     ),        
                     
-              plotOutput("country_view")
+                    plotOutput("country_compare")
            ),
            
            tabPanel(title = "Mortality",
                     plotlyOutput("mortality_graph")
            )
-        
+           
     )
   )
 )
@@ -143,11 +166,84 @@ server <- function(input, output, session) {
     )
   
   
+  # value boxes world
+  corona_world_summary <- reactive( {
+    coronavirus %>% 
+      filter(date <= as_date(input$date)) %>% 
+      group_by(type) %>% 
+      summarize(cases = sum(cases))
+  })
+  
+  output$valueBox_confirmed_cases <- renderValueBox({
+    value <- corona_world_summary() %>% filter(type == "confirmed") %>% pull(cases)
+    valueBox(scales::number(value), "Confirmed Cases", icon = icon("file-medical"))
+  })
+  output$valueBox_deaths <- renderValueBox({
+    value <- corona_world_summary() %>% filter(type == "death") %>% pull(cases)
+    valueBox(scales::number(value), "Deaths", icon = icon("cross"), color = "orange")
+  })
+  output$valueBox_increase_worldwide <- renderValueBox({
+    increase_worldwide <- corona_cases_country_day %>% 
+      filter(type == "confirmed") %>% 
+      filter(date >= max(date) - 1) %>% 
+      group_by(date) %>% 
+      summarize(cumul_cases = sum(cumul_cases)) %>% 
+      mutate(prev_day = lag(cumul_cases),
+             diff = cumul_cases - prev_day,
+             increase = diff / prev_day) %>% 
+      filter(date == max(date)) %>% 
+      pull(increase)
+    valueBox(scales::percent(increase_worldwide, accuracy = 1.1), "Increase Cases Worldwide", icon = icon("chart-line"))
+  })
+  output$valueBox_increase_outside_china <- renderValueBox({
+    increase_worldwide <- corona_cases_country_day %>% 
+      filter(type == "confirmed", region != "China") %>% 
+      filter(date >= max(date) - 1) %>% 
+      group_by(date) %>% 
+      summarize(cumul_cases = sum(cumul_cases)) %>% 
+      mutate(prev_day = lag(cumul_cases),
+             diff = cumul_cases - prev_day,
+             increase = diff / prev_day) %>% 
+      filter(date == max(date)) %>% 
+      pull(increase)
+    valueBox(scales::percent(increase_worldwide, accuracy = 1.1), "Increase Cases Outside China", icon = icon("chart-line"))
+  })
+  output$valueBox_increase_highest_country <- renderValueBox({
+    cases_threshold <- 20
+    increase_country_max <- corona_cases_country_day %>% 
+      filter(type == "confirmed") %>% 
+      filter(date >= max(date) - 1) %>%
+      # include only cases with a certain amount of cases on prev day
+      filter(cumul_cases >= cases_threshold) %>% 
+      group_by(region, date) %>% 
+      summarize(cumul_cases = sum(cumul_cases)) %>% 
+      # keep only if 2 previous and current day have at least {cases_threshold} cases
+      filter(n() > 1) %>% 
+      mutate(prev_day = lag(cumul_cases),
+             diff = cumul_cases - prev_day,
+             increase = diff / prev_day) %>% 
+      filter(date == max(date)) %>% 
+      ungroup() %>% 
+      arrange(-increase) %>% 
+      slice(1)
+    
+    country_highest_increase_confirmed <- pull(increase_country_max, region)
+    
+    valueBox(scales::percent(pull(increase_country_max, increase), accuracy = 1.0), sprintf("%s (Highest Increase)", country_highest_increase_confirmed), icon = icon("chart-line"))
+  })
+  
   # filter the dataset for world map
   corona_cases_country_day_data <- reactive({
     df <- corona_cases_country_day %>% 
       filter(date == input$date, type == input$type) %>% 
       mutate(label = sprintf("<b>%s</b>\n%d", region, cumul_cases) %>% map(htmltools::HTML))
+    
+    if (input$relative_to_pop) {
+      df <- df %>%
+        mutate(label = sprintf("<b>%s</b>\n%9.2f", region, cumul_cases_100k) %>% map(htmltools::HTML))
+    }
+    
+    df
   })
   
   corona_cases_country_day_historical_data <- reactive({
@@ -156,13 +252,40 @@ server <- function(input, output, session) {
       mutate(label = sprintf("<b>%s</b>\n%d", region, cases) %>% map(htmltools::HTML))
   })
   
+  corona_cases_country_day_historical_data_compare <- reactive({
+    df <- corona_cases_country_day %>% 
+      filter(date <= input$date_2, type == input$type_2, region %in% c(input$country_2, input$country_2_compare)) %>% 
+      mutate(label = sprintf("<b>%s</b>\n%d", region, cases) %>% map(htmltools::HTML),
+             # create a factor variable to order countries consistent with input
+             region = factor(region, levels = c(input$country_2, input$country_2_compare))
+      )
+  })
+  
   # tmp
-  output$raw_data <- renderDT(
-    corona_cases_country_day_data() %>% 
-      select(region, cases, cumul_cases) %>% 
-      arrange(-cumul_cases)
-  )
+  output$raw_data <- renderDT({
+    df <- corona_cases_country_day_data() %>% 
+      select(region, cumul_cases, cases) %>% 
+      arrange(-cumul_cases) %>% 
+      mutate(increase_prop = cases / (cumul_cases - cases),
+             # for formatting color bars, limit max value to 1
+             increase_prop_2 = ifelse(increase_prop > 1, 1, increase_prop)
+             ) %>% 
+      rename(`Country` = region, `Total Cases`= cumul_cases, `Increase (n)` = cases, `Increase (%)` = increase_prop)
     
+    df %>% 
+      select(-increase_prop_2) %>% 
+      datatable() %>% 
+      formatPercentage("Increase (%)") %>% 
+      formatRound(c("Total Cases", "Increase (n)"), digits = 0) %>% 
+      formatStyle(
+        "Increase (%)",
+        background = styleColorBar(df$increase_prop_2, 'lightblue'),
+        backgroundSize = '100% 90%',
+        backgroundRepeat = 'no-repeat',
+        backgroundPosition = 'center'
+      ) 
+  })
+  
   output$world_map <- renderLeaflet({
     leaflet() %>%
       addTiles() %>%
@@ -179,7 +302,7 @@ server <- function(input, output, session) {
       fill_color <- "orangered"
       point_size_factor <- 60
     } else if (input$type == "recovered") {
-      fill_color <- "green"
+      fill_color <- "darkgreen"
       point_size_factor <- 10
     }
     color <- fill_color
@@ -199,12 +322,15 @@ server <- function(input, output, session) {
       
     }
     
-    
   })
   
   updateSelectInput(session = session, "country_2", 
                     choices = corona_cases_country_day %>% distinct(region) %>% pull(region),
                     selected = "Germany")
+  
+  updateSelectInput(session = session, "country_2_compare", 
+                    choices = corona_cases_country_day %>% distinct(region) %>% pull(region),
+                    selected = "Italy")
   
   reactive_country_plot <- reactive({
     # color points based on type of data
@@ -215,7 +341,7 @@ server <- function(input, output, session) {
       fill_color <- "orangered"
       point_size_factor <- 60
     } else if (input$type_2 == "recovered") {
-      fill_color <- "green"
+      fill_color <- "darkgreen"
       point_size_factor <- 10
     }
     color <- fill_color
@@ -224,58 +350,62 @@ server <- function(input, output, session) {
       ggplot(aes(date)) +
       geom_col(aes(y = cases, 
                    #text = sprintf("<b>New Cases</b>\n%s\n%d", date, cases)
-                   ),
-               alpha = 0.7) +
+      ),
+      alpha = 0.7) +
       geom_line(aes(y = cumul_cases, 
                     #text = sprintf("<b>Cumulative Cases</b>\n%s\n%d", date, cumul_cases)
-                    ), 
-                col = fill_color, size = 1.3) +
+      ), 
+      col = fill_color, size = 1.3) +
       labs(x = NULL, y = NULL) +
       theme_minimal()
-    })
-
+  })
+  
+  reactive_country_compare_plot <- reactive({
+    # color points based on type of data
+    if (input$type_2 == "confirmed") {
+      fill_color <- "#0033FF"
+      point_size_factor <- 10
+    } else if (input$type_2 == "death") {
+      fill_color <- "orangered"
+      point_size_factor <- 60
+    } else if (input$type_2 == "recovered") {
+      fill_color <- "darkgreen"
+      point_size_factor <- 10
+    }
+    color <- fill_color
+    
+    corona_cases_country_day_historical_data_compare() %>% 
+      ggplot(aes(date)) +
+      geom_col(aes(y = cases,
+                   #text = sprintf("<b>New Cases</b>\n%s\n%d", date, cases)
+      ),
+      alpha = 0.5) +
+      geom_line(aes(y = cumul_cases, lty = region,
+                    #text = sprintf("<b>Cumulative Cases</b>\n%s\n%d", date, cumul_cases)
+      ), 
+      col = fill_color, size = 1.3) +
+      labs(x = NULL, y = NULL) +
+      guides(lty = FALSE) +
+      facet_wrap(vars(region), ncol = 1) +
+      theme_minimal() +
+      theme(strip.text = element_text(size = 20))
+  })
+  
+  
+  
+  
   observe({
     output$country_view <- renderPlot({
-      #ggplotly(reactive_country_plot(), tooltip = c("text"))
       reactive_country_plot()
+    })
+    
+    output$country_compare <- renderPlot({
+      reactive_country_compare_plot()
     })
   })
   
   # plot of 
   output$mortality_graph <- renderPlotly({
-    # p <- corona_cases_country_day %>%
-    #   filter(type %in% c("confirmed", "death")) %>%
-    #   #filter(date == max(date)) %>%
-    #   select(-cases) %>%
-    #   spread(key = type, value = cumul_cases) %>%
-    #   mutate(death = replace_na(death, 0),
-    #          mortality = death / confirmed) %>%
-    #   # at least n cases
-    #   filter(confirmed >= 100) %>%
-    #   ggplot(aes(confirmed, mortality, group = region)) +
-    #   geom_point(alpha = 0.5,
-    #              aes(
-    #                #col = continent, 
-    #                size = death,
-    #                text = sprintf("<b>%s</b>\nConfirmed Cases: %d\nDeaths: %s",
-    #                                   region, confirmed, death))) +
-    #   scale_x_log10(label = scales::number_format(accuracy = 1)) +
-    #   scale_y_continuous(label = scales::percent_format(accuracy = 1)) +
-    #   labs(caption = "Only countries with at least 100 confirmed cases displayed.",
-    #        x = "Confirmed Cases (log10)", y = "Mortality", size = "Deaths"
-    #        #col = "Continent"
-    #        ) +
-    #   theme_minimal()
-    # 
-    # ggplotly(p, tooltip = c("text"), frame = ~date) %>%
-    #   # layout(title = list(text = str_c("US State Population and Life Expectancy",
-    #   #                                   "<br>",
-    #   #                                   "<sup>",
-    #   #                                   "Instead of actual mortality rates this plot at least partly indicates\nhow extensively testing is available in each country.",
-    #   #                                   "</sup>")))
-    #   # ggplotly ignores text-alignment from ggplot object
-    #   style(textposition = "right")
-    # 
     df <- corona_cases_country_day %>%
       filter(type %in% c("confirmed", "death")) %>%
       #filter(date == max(date)) %>%
@@ -288,7 +418,7 @@ server <- function(input, output, session) {
              mortality = ifelse(is.nan(mortality), 0, mortality),
              mortality = ifelse(confirmed < 100, 0, mortality)) %>%
       arrange(region, date)
-
+    
     df %>% plot_ly(
       x = ~confirmed, 
       y = ~mortality, 
@@ -301,7 +431,7 @@ server <- function(input, output, session) {
       hoverinfo = "text",
       type = "scatter",
       mode = "markers"
-      ) %>% 
+    ) %>% 
       layout(
         xaxis = list(
           type = "log"
