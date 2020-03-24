@@ -175,7 +175,7 @@ map <- tm_basemap(leaflet::providers$OpenStreetMap) +
               # as of 2020-03-24, recovered cases will not be reported
               popup.vars = c("Cases:" = "confirmed", "Deaths:" = "death"),
               textNA = "No Confirmed Cases", title = "Confirmed Cases", 
-              breaks = c(1, 10, 100, 1000, 10000, 20000, 80000, Inf)) +
+              breaks = c(1, 10, 100, 1000, 10000, 20000, 50000, 80000, Inf)) +
   tm_text("confirmed", size = "AREA")
 
 # show leaflet
