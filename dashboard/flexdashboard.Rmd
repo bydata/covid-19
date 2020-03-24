@@ -172,7 +172,8 @@ map <- tm_basemap(leaflet::providers$OpenStreetMap) +
   tm_shape(World_corona, name = "geometry") +
   tm_view(text.size.variable = TRUE, set.view = 3) +
   tm_polygons("confirmed", id = "name", 
-              popup.vars = c("Cases:" = "confirmed", "Deaths:" = "death", "Recovered" = "recovered"),
+              # as of 2020-03-24, recovered cases will not be reported
+              popup.vars = c("Cases:" = "confirmed", "Deaths:" = "death"),
               textNA = "No Confirmed Cases", title = "Confirmed Cases", 
               breaks = c(1, 10, 100, 1000, 10000, 20000, 80000, Inf)) +
   tm_text("confirmed", size = "AREA")
@@ -196,12 +197,6 @@ confirmed_cases <- corona_overall %>% filter(type == "confirmed") %>% pull(cases
 valueBox(scales::number(confirmed_cases), icon = "fa-file-medical")
 ```
 
-### Recovered
-
-```{r}
-recovered <- corona_overall %>% filter(type == "recovered") %>% pull(cases)
-valueBox(scales::number(recovered), icon = "fa-heart")
-```
 
 ### Deaths
 

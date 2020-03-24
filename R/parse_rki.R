@@ -23,7 +23,7 @@ colnames(table) <- c("Bundesland", "confirmed_cases", "confirmed_cases_diff", "c
 rki_germany <- table %>% 
   filter(Bundesland != "Gesamt") %>% 
   mutate(confirmed_cases = str_replace(confirmed_cases, "\\.", "") %>% as.numeric(),
-         confirmed_cases_diff = str_replace(confirmed_cases_diff, "\\+", "") %>% as.numeric())
+         confirmed_cases_diff = str_replace_all(confirmed_cases_diff, "[+.]", "") %>% as.numeric())
 
 write_rds(rki_germany, "output/rki_germany.RData")
 
