@@ -339,8 +339,10 @@ server <- function(input, output, session) {
   })
   
   output$world_map <- renderLeaflet({
-    leaflet() %>%
-      addTiles() %>%
+    leaflet(
+      options = leafletOptions(worldCopyJump = FALSE)
+    ) %>%
+      addTiles(options = tileOptions(noWrap = TRUE)) %>%
       setView(lng = 2, lat = 30, zoom = 2)
   })
   

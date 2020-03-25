@@ -5,6 +5,6 @@ account: awol
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 1996186
-bundleId: 2924642
+bundleId: 2924716
 url: https://awol.shinyapps.io/coronavirus_shinydashboard/
-when: 1585171387.29282
+when: 1585172451.17947
