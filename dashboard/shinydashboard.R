@@ -56,7 +56,7 @@ body <- dashboardBody(
                              ),
                              
                              tabPanel(title = "Raw Data",
-                                DTOutput("raw_data")
+                                      DTOutput("raw_data")
                                       
                              )
                       )
@@ -75,27 +75,32 @@ body <- dashboardBody(
            tabPanel(title = "Countries",
                     tags$head(tags$style(type = "text/css", "#country_compare {height:700px !important;}")),
                     fluidRow(
-                      column(width = 3,
+                      column(width = 4,
                              sliderInput("date_2", label = "Select Date",
                                          min = min(coronavirus$date), max = max(coronavirus$date), 
                                          value = max(coronavirus$date),
                                          animate = animationOptions(interval = 500, loop = FALSE)
                              ),
                       ),
-                      column(width = 3,
-                             selectInput("type_2", "Choose Metric",
-                                         choices = c("Confirmed Cases" = "confirmed", "Deaths" = "death"), 
-                                         selected = "Confirmed Cases")
+                      column(width = 4,
+                             fluidRow(
+                               selectInput("type_2", "Choose Metric",
+                                           choices = c("Confirmed Cases" = "confirmed", "Deaths" = "death"), 
+                                           selected = "Confirmed Cases"),
+                               selectInput("scale_2", "Scale",
+                                           choices = c("Linear", "Logarithmic"),
+                                           selected = "Linear")
+                             )
                       ),
-                      column(width = 3,
-                             selectInput("country_2", "Select Country",
-                                         choices = "",
-                                         selected = "Germany")
-                      ),
-                      column(width = 3,
-                             selectInput("country_2_compare", "Compare to",
-                                         choices = "",
-                                         selected = "Italy")
+                      column(width = 4,
+                             fluidRow(
+                               selectInput("country_2", "Select Country",
+                                           choices = "",
+                                           selected = "Germany"),
+                               selectInput("country_2_compare", "Compare to",
+                                           choices = "",
+                                           selected = "Italy")
+                             )
                       )
                     ),        
                     
@@ -127,6 +132,15 @@ server <- function(input, output, session) {
   country_names <- read_tsv("../input/country_name_mapping.tsv")
   country_population <- read_tsv("../input/country_population.tsv")
   
+  
+  # calculate doubling time
+  # @param r growth rate in interval t (fractions of 1)
+  # @param t time in days (default: 1 day)
+  calculate_doubling_time <- function(r, t = 1) {
+    Td = t * (log(2) / log(1 + r))
+    Td
+  }
+  
   max_date <- max(coronavirus$date)
   corona_cases_country_day <- coronavirus %>% 
     inner_join(country_names, by = c("Country.Region" = "region_coronavirus")) %>% 
@@ -149,21 +163,30 @@ server <- function(input, output, session) {
         region == "France" ~ 46.2276,
         region == "Netherlands" ~ 52.1326,
         region == "Denmark" ~ 56.2639,
-        region == "United Kingdom" ~ 	55.3781,
+        region == "UK" ~ 	55.3781,
         TRUE ~ lat
       ),
       long = case_when(
         region == "France" ~ 2.2137,
         region == "Netherlands" ~	5.2913,
         region == "Denmark" ~ 9.5018,
-        region == "United Kingdom" ~ 	-3.4360,
+        region == "UK" ~ 	-3.4360,
         TRUE ~ long
       )
     ) %>% 
     left_join(country_population, by = "region") %>% 
     mutate(cases_100k = 100 * cases /  pop,
            cumul_cases_100k = 100 * cumul_cases / pop
-    )
+    ) %>% 
+    # calculate increase from previous day and doubling time based on 3d-interval
+    group_by(region, type) %>% 
+    mutate(
+      increase_prop = cases / (cumul_cases - cases),
+      increase_rate_3days = cumul_cases / lag(cumul_cases, 3) - 1,
+      doubling_time = calculate_doubling_time(increase_rate_3days, t = 3),
+      doubling_time = ifelse(doubling_time %in% c(0, NaN, Inf), NA, doubling_time)
+    ) %>% 
+    ungroup()
   
   
   # value boxes world
@@ -261,29 +284,43 @@ server <- function(input, output, session) {
       )
   })
   
+  
   # tmp
   output$raw_data <- renderDT({
     df <- corona_cases_country_day_data() %>% 
-      select(region, cumul_cases, cases) %>% 
+      select(region, cumul_cases, cases, doubling_time) %>% 
       arrange(-cumul_cases) %>% 
       mutate(increase_prop = cases / (cumul_cases - cases),
              # for formatting color bars, limit max value to 1
-             increase_prop_2 = ifelse(increase_prop > 1, 1, increase_prop)
-             ) %>% 
-      rename(`Country` = region, `Total Cases`= cumul_cases, `Increase (n)` = cases, `Increase (%)` = increase_prop)
+             increase_prop_2 = ifelse(increase_prop > 1, 1, increase_prop),
+             # ... and min value to 0
+             increase_prop_2 = ifelse(increase_prop < 0, 0, increase_prop),
+             # cover negative increases
+             doubling_time = ifelse(doubling_time < 0, NA, doubling_time)
+      ) %>% 
+      # # calculate doubling time
+      # mutate(doubling_time = calculate_doubling_time(increase_prop_2)) %>% 
+      rename(`Country` = region, `Total Cases`= cumul_cases, `Increase (n)` = cases, 
+             `Increase (%)` = increase_prop,
+             `Doubling Time (Days)` = doubling_time)
     
     df %>% 
       select(-increase_prop_2) %>% 
       datatable() %>% 
       formatPercentage("Increase (%)") %>% 
       formatRound(c("Total Cases", "Increase (n)"), digits = 0) %>% 
+      formatRound(c("Doubling Time (Days)"), digits = 1) %>% 
       formatStyle(
         "Increase (%)",
         background = styleColorBar(df$increase_prop_2, 'lightblue'),
         backgroundSize = '100% 90%',
         backgroundRepeat = 'no-repeat',
         backgroundPosition = 'center'
-      ) 
+      ) %>% 
+      formatStyle(
+        "Doubling Time (Days)",
+        color = styleInterval(c(7, 14), c("red", "black", "green"))
+      )
   })
   
   output$world_map <- renderLeaflet({
@@ -374,7 +411,7 @@ server <- function(input, output, session) {
     }
     color <- fill_color
     
-    corona_cases_country_day_historical_data_compare() %>% 
+    p <- corona_cases_country_day_historical_data_compare() %>% 
       ggplot(aes(date)) +
       geom_col(aes(y = cases,
                    #text = sprintf("<b>New Cases</b>\n%s\n%d", date, cases)
@@ -389,6 +426,11 @@ server <- function(input, output, session) {
       facet_wrap(vars(region), ncol = 1) +
       theme_minimal() +
       theme(strip.text = element_text(size = 20))
+    
+    if (input$scale_2 == "Logarithmic") {
+      p <- p + scale_y_log10()
+    }
+    p
   })
   
   
