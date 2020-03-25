@@ -9,7 +9,7 @@ data("coronavirus")
 coronavirus <- coronavirus %>% 
   # merge China
   mutate(Country.Region = ifelse(
-    Country.Region %in% c("Mainland China", "Macau", "Hong Kong"),
+    Country.Region %in% c("Mainland China", "Macau", "Hong Kong", "Macau SAR", "Hong Kong SAR"),
     "China", Country.Region))
 
 
