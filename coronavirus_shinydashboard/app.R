@@ -3,7 +3,7 @@ library(shiny)
 library(r2d3)
 library(tidyverse)
 library(DT)
-devtools::install_github("RamiKrispin/coronavirus")
+#devtools::install_github("RamiKrispin/coronavirus")
 library(coronavirus)
 library(tidyverse)
 library(lubridate)
@@ -14,6 +14,10 @@ library(leaflet)
 library(plotly)
 library(shinyWidgets)
 library(formattable)
+
+country_names <- read_tsv("input/country_name_mapping.tsv")
+country_population <- read_tsv("input/country_population.tsv")
+
 
 body <- dashboardBody(
   tags$style(type="text/css", ".recalculating { opacity: 1.0; }
@@ -65,7 +69,6 @@ body <- dashboardBody(
                       column(width = 12,
                              valueBoxOutput(width = 3, "valueBox_confirmed_cases"),
                              valueBoxOutput(width = 3, "valueBox_deaths"),
-                             #valueBoxOutput(width = 3, "valueBox_increase_worldwide"),
                              valueBoxOutput(width = 3, "valueBox_increase_outside_china"),
                              valueBoxOutput(width = 3, "valueBox_increase_highest_country")
                       )
@@ -108,6 +111,11 @@ body <- dashboardBody(
            ),
            
            tabPanel(title = "Mortality",
+                    sliderInput("date_3", label = "Select Date",
+                                min = min(coronavirus$date), max = max(coronavirus$date), 
+                                value = max(coronavirus$date),
+                                animate = animationOptions(interval = 200, loop = FALSE)
+                    ),
                     plotlyOutput("mortality_graph")
            )
            
@@ -129,8 +137,11 @@ server <- function(input, output, session) {
   
   # get data
   data("coronavirus")
-  country_names <- read_tsv("../input/country_name_mapping.tsv")
-  country_population <- read_tsv("../input/country_population.tsv")
+  dim(coronavirus)
+  cv_update <- coronavirus::update_datasets(TRUE)
+  if (!is.null(cv_update)) {
+    coronavirus <- cv_update
+  }
   
   
   # calculate doubling time
@@ -144,7 +155,7 @@ server <- function(input, output, session) {
   max_date <- max(coronavirus$date)
   corona_cases_country_day <- coronavirus %>% 
     inner_join(country_names, by = c("Country.Region" = "region_coronavirus")) %>% 
-    group_by(region = region_world, type, date) %>% 
+    group_by(region = region_world, continent, type, date) %>% 
     summarize(cases = sum(cases), 
               long = mean(Long),
               lat = mean(Lat)) %>%
@@ -179,7 +190,7 @@ server <- function(input, output, session) {
            cumul_cases_100k = 100 * cumul_cases / pop
     ) %>% 
     # calculate increase from previous day and doubling time based on 3d-interval
-    group_by(region, type) %>% 
+    group_by(region, continent, type) %>% 
     mutate(
       increase_prop = cases / (cumul_cases - cases),
       increase_rate_3days = cumul_cases / lag(cumul_cases, 3) - 1,
@@ -297,15 +308,12 @@ server <- function(input, output, session) {
              increase_prop_2 = ifelse(increase_prop < 0, 0, increase_prop),
              # cover negative increases
              doubling_time = ifelse(doubling_time < 0, NA, doubling_time)
-      ) %>% 
-      # # calculate doubling time
-      # mutate(doubling_time = calculate_doubling_time(increase_prop_2)) %>% 
-      rename(`Country` = region, `Total Cases`= cumul_cases, `Increase (n)` = cases, 
-             `Increase (%)` = increase_prop,
-             `Doubling Time (Days)` = doubling_time)
+      )
     
     df %>% 
-      select(-increase_prop_2) %>% 
+      select(`Country` = region, `Total Cases`= cumul_cases, `Increase (n)` = cases, 
+             `Increase (%)` = increase_prop,
+             `Doubling Time (Days)` = doubling_time) %>% 
       datatable() %>% 
       formatPercentage("Increase (%)") %>% 
       formatRound(c("Total Cases", "Increase (n)"), digits = 0) %>% 
@@ -313,13 +321,20 @@ server <- function(input, output, session) {
       formatStyle(
         "Increase (%)",
         background = styleColorBar(df$increase_prop_2, 'lightblue'),
-        backgroundSize = '100% 90%',
-        backgroundRepeat = 'no-repeat',
-        backgroundPosition = 'center'
+        backgroundSize = "100% 90%",
+        backgroundRepeat = "no-repeat",
+        backgroundPosition = "center"
       ) %>% 
       formatStyle(
         "Doubling Time (Days)",
         color = styleInterval(c(7, 14), c("red", "black", "green"))
+      ) %>% 
+      formatStyle(
+        "Total Cases",
+        background = styleColorBar(df$cumul_cases, 'lightblue'),
+        backgroundSize = "100% 10%",
+        backgroundRepeat = "no-repeat",
+        backgroundPosition = "center bottom"
       )
   })
   
@@ -434,8 +449,6 @@ server <- function(input, output, session) {
   })
   
   
-  
-  
   observe({
     output$country_view <- renderPlot({
       reactive_country_plot()
@@ -446,40 +459,36 @@ server <- function(input, output, session) {
     })
   })
   
-  # plot of 
-  output$mortality_graph <- renderPlotly({
-    df <- corona_cases_country_day %>%
+  # plot of
+  
+  data_for_mortality_graph <- reactive({
+    corona_cases_country_day %>%
       filter(type %in% c("confirmed", "death")) %>%
-      #filter(date == max(date)) %>%
-      select(-cases) %>%
+      select(region, continent, date, type, cumul_cases) %>%
       spread(key = type, value = cumul_cases) %>%
       mutate(death = replace_na(death, 0),
              mortality = death / confirmed) %>%
       # at least n cases
-      mutate(confirmed = ifelse(confirmed < 100, 0, confirmed),
-             mortality = ifelse(is.nan(mortality), 0, mortality),
-             mortality = ifelse(confirmed < 100, 0, mortality)) %>%
+      mutate(
+        # mute small values
+        confirmed = ifelse(confirmed < 10, 0, confirmed),
+        mortality = ifelse(is.nan(mortality), 0, mortality),
+        mortality = ifelse(confirmed < 10, 0, mortality)
+        ) %>%
       arrange(region, date)
+  })
     
-    df %>% plot_ly(
-      x = ~confirmed, 
-      y = ~mortality, 
-      size = ~death, 
-      #group = ~region,
-      #connectgaps = TRUE,
-      #color = ~continent, 
-      frame = ~date,
-      text = ~region, 
-      hoverinfo = "text",
-      type = "scatter",
-      mode = "markers"
-    ) %>% 
-      layout(
-        xaxis = list(
-          type = "log"
-        )
-      )
-    
+  output$mortality_graph <- renderPlotly({
+    p <- data_for_mortality_graph() %>% 
+      filter(date == input$date_3) %>% 
+      ggplot(aes(confirmed, mortality)) +
+      geom_point(aes(size = death, col = continent,
+                     text = sprintf("<b>%s</b>\nMortality Rate: %s\nConfirmed Cases: %d\nDeaths: %d", region, scales::percent(mortality, accuracy = 0.1), confirmed, death))) +
+      scale_x_log10(labels = scales::number, limits = c(1, 10^5)) +
+      scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(0, 0.15)) +
+      labs(x = "Confirmed Cases", y = "Deaths / Confirmed Cases") +
+      theme_minimal()
+    ggplotly(p, tooltip = c("text"))
   })
   
 }
