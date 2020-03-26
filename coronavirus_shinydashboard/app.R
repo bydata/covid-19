@@ -41,11 +41,7 @@ body <- dashboardBody(
                                          selected = "Confirmed Cases"),
                              shinyWidgets::materialSwitch("relative_to_pop", "Per 100,000 Inhabitants", 
                                                           value = FALSE, status = "primary")
-                      ),
-                      # column(width = 2,
-                      #        shinyWidgets::materialSwitch("relative_to_pop", "Per 100,000 Inhabitants", 
-                      #                                     value = FALSE, status = "primary")
-                      # )
+                      )
                     ), 
                     fluidRow(
                       tags$head(tags$style(type = "text/css", "#world_map {height:600px !important;}
@@ -120,6 +116,11 @@ body <- dashboardBody(
            )
            
     )
+  ),
+  fluidRow(title = "Footer",
+    column(width = 12,
+           "Data Source: Johns Hopkins University (github.com/CSSEGISandData/COVID-19).",
+           "Using coronavirus package by Rami Krispin to pull data (https://ramikrispin.github.io/coronavirus/)")
   )
 )
 
@@ -137,12 +138,24 @@ server <- function(input, output, session) {
   
   # get data
   data("coronavirus")
-  dim(coronavirus)
-  cv_update <- coronavirus::update_datasets(TRUE)
-  if (!is.null(cv_update)) {
-    coronavirus <- cv_update
-  }
+  # dim(coronavirus)
+  # Sys.setenv("R_REMOTES_UPGRADE" = "never")
+  # cv_update <- coronavirus::update_datasets(TRUE)
+  # if (!is.null(cv_update)) {
+  #   coronavirus <- cv_update
+  # }
   
+  # check time elapsed since last update
+  filename <- "input/coronavirus.RData"
+  update_threshold <- 60 * 60 * 6 # check for update after 6 hours (in seconds)
+  file_mtime <- file.info(filename)$mtime
+  current_time <- Sys.time()
+  # if threshold time has elapsed since last file update refresh data
+  if (is.na(file_mtime) | as.numeric(difftime(current_time, file_mtime)) > update_threshold) {
+    message("Update data source")
+    source("pulling raw data.R", verbose = FALSE)
+  }
+  readr::read_rds(filename)
   
   # calculate doubling time
   # @param r growth rate in interval t (fractions of 1)
@@ -296,10 +309,10 @@ server <- function(input, output, session) {
   })
   
   
-  # tmp
+  # Table view
   output$raw_data <- renderDT({
     df <- corona_cases_country_day_data() %>% 
-      select(region, cumul_cases, cases, doubling_time) %>% 
+      select(region, cumul_cases, cumul_cases_100k, cases, doubling_time) %>% 
       arrange(-cumul_cases) %>% 
       mutate(increase_prop = cases / (cumul_cases - cases),
              # for formatting color bars, limit max value to 1
@@ -310,10 +323,19 @@ server <- function(input, output, session) {
              doubling_time = ifelse(doubling_time < 0, NA, doubling_time)
       )
     
-    df %>% 
+    if (input$relative_to_pop) {
+      df <- df %>% 
+        select(`Country` = region, `Total Cases`= cumul_cases_100k, `Increase (n)` = cases, 
+               `Increase (%)` = increase_prop,
+               `Doubling Time (Days)` = doubling_time, increase_prop_2)
+    } else {
+      df <- df %>% 
       select(`Country` = region, `Total Cases`= cumul_cases, `Increase (n)` = cases, 
              `Increase (%)` = increase_prop,
-             `Doubling Time (Days)` = doubling_time) %>% 
+             `Doubling Time (Days)` = doubling_time, increase_prop_2)
+    }
+    df %>% 
+      select(-increase_prop_2) %>% 
       datatable() %>% 
       formatPercentage("Increase (%)") %>% 
       formatRound(c("Total Cases", "Increase (n)"), digits = 0) %>% 
@@ -331,7 +353,7 @@ server <- function(input, output, session) {
       ) %>% 
       formatStyle(
         "Total Cases",
-        background = styleColorBar(df$cumul_cases, 'lightblue'),
+        background = styleColorBar(df$`Total Cases`, 'lightblue'),
         backgroundSize = "100% 10%",
         backgroundRepeat = "no-repeat",
         backgroundPosition = "center bottom"
@@ -445,7 +467,7 @@ server <- function(input, output, session) {
       theme(strip.text = element_text(size = 20))
     
     if (input$scale_2 == "Logarithmic") {
-      p <- p + scale_y_log10()
+      p <- p + scale_y_log10(labels = scales::number)
     }
     p
   })
@@ -488,7 +510,7 @@ server <- function(input, output, session) {
                      text = sprintf("<b>%s</b>\nMortality Rate: %s\nConfirmed Cases: %d\nDeaths: %d", region, scales::percent(mortality, accuracy = 0.1), confirmed, death))) +
       scale_x_log10(labels = scales::number, limits = c(1, 10^5)) +
       scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(0, 0.15)) +
-      labs(x = "Confirmed Cases", y = "Deaths / Confirmed Cases") +
+      labs(x = "Confirmed Cases", y = "Deaths / Confirmed Cases", col = "Continent") +
       theme_minimal()
     ggplotly(p, tooltip = c("text"))
   })
