@@ -3,12 +3,19 @@ COVID-19 Dashboard
 
 ## Dashboard
 
+### Flexdashboard
+
 A [COVID-19
 dashboard](https://bydata.github.io/covid-19/dashboard/flexdashboard.html)
 based on the flexdashboard R package. Updates to Corona virus figures
 are fed into the dashboard via the [coronavirus R
 package](https://www.github.com/RamiKrispin/coronavirus) by [Rami
 Krispin](https://www.github.com/RamiKrispin/).
+
+### Shinydashboard
+
+Shinydashboard might be up and running on
+<https://awol.shinyapps.io/coronavirus_shinydashboard/>
 
 ## Motivation
 
@@ -48,4 +55,4 @@ clicking on legend elements, zooming),
 
 ## Latest Update
 
-2020-03-25
+2020-03-26
