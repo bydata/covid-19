@@ -137,14 +137,6 @@ ui <- dashboardPage(
 server <- function(input, output, session) {
   
   # get data
-  data("coronavirus")
-  # dim(coronavirus)
-  # Sys.setenv("R_REMOTES_UPGRADE" = "never")
-  # cv_update <- coronavirus::update_datasets(TRUE)
-  # if (!is.null(cv_update)) {
-  #   coronavirus <- cv_update
-  # }
-  
   # check time elapsed since last update
   filename <- "input/coronavirus.RData"
   update_threshold <- 60 * 60 * 6 # check for update after 6 hours (in seconds)
