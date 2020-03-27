@@ -32,7 +32,7 @@ for(i in 5:ncol(raw_conf)){
 
   raw_conf[,i] <- as.integer(raw_conf[,i])
   # raw_conf[,i] <- ifelse(is.na(raw_conf[, i]), 0 , raw_conf[, i])
-    print(names(raw_conf)[i])
+    #print(names(raw_conf)[i])
 
   if(i == 5){
     df_conf[[names(raw_conf)[i]]] <- raw_conf[, i]
@@ -68,8 +68,8 @@ df_conf2 <- df_conf1 %>%
                 Country.Region = trimws(Country.Region),
                 Province.State = trimws(Province.State))
 
-head(df_conf2)
-tail(df_conf2)
+# head(df_conf2)
+# tail(df_conf2)
 #----------------------------------------------------
 # Pulling death cases
 
@@ -93,7 +93,7 @@ lapply(1:ncol(raw_death), function(i){
 df_death <- raw_death[, 1:4]
 
 for(i in 5:ncol(raw_death)){
-  print(i)
+  #print(i)
   raw_death[,i] <- as.integer(raw_death[,i])
   raw_death[,i] <- ifelse(is.na(raw_death[, i]), 0 , raw_death[, i])
 
@@ -129,8 +129,8 @@ df_death2 <- df_death1 %>%
                 Country.Region = trimws(Country.Region),
                 Province.State = trimws(Province.State))
 
-head(df_death2)
-tail(df_death2)
+# head(df_death2)
+# tail(df_death2)
 
 
 #---------------- Aggregate all cases ----------------
@@ -140,3 +140,4 @@ coronavirus <- dplyr::bind_rows(df_conf2, df_death2) %>%
   as.data.frame()
 
 readr::write_rds(coronavirus, "input/coronavirus.RData")
+print(sprintf("Updated data source at %s", Sys.time()))
