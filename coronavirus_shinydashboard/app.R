@@ -4,7 +4,7 @@ library(r2d3)
 library(tidyverse)
 library(DT)
 #devtools::install_github("RamiKrispin/coronavirus")
-#library(coronavirus)
+library(coronavirus)
 library(tidyverse)
 library(lubridate)
 # library(sf)
@@ -413,16 +413,30 @@ server <- function(input, output, session) {
     }
     
   })
-  region_choices <- reactive({corona_cases_country_day() %>% distinct(region) %>% pull(region)})
-  region_choices <- c("Germany", "Italy")
-  updateSelectInput(session = session, "country_2", 
-                    choices = region_choices,
-                    selected = "Germany")
   
-  updateSelectInput(session = session, "country_2_compare", 
-                    choices = region_choices,
-                    selected = "Italy")
-  
+  # update selectors for regions with new dataframe
+  region_choices <- reactive({
+    corona_cases_country_day() %>% 
+      distinct(region) %>% 
+      pull(region)
+    })
+  #region_choices <- c("Germany", "Italy")
+  observe({
+    updateSliderInput(session = session, "date",
+                      min = min(coronavirus()$date),
+                      max = max(coronavirus()$date),
+                      value = max(coronavirus()$date)
+    )
+    
+    updateSelectInput(session = session, "country_2", 
+                      choices = region_choices(),
+                      selected = "Germany")
+    
+    updateSelectInput(session = session, "country_2_compare", 
+                      choices = region_choices(),
+                      selected = "Italy")
+  })  
+    
   reactive_country_plot <- reactive({
     # color points based on type of data
     if (input$type_2 == "confirmed") {
