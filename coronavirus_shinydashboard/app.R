@@ -76,8 +76,8 @@ body <- dashboardBody(
                     fluidRow(
                       column(width = 4,
                              sliderInput("date_2", label = "Select Date",
-                                         min = min(coronavirus$date), max = max(coronavirus$date), 
-                                         value = max(coronavirus$date),
+                                         min = min(coronavirus$date), max = (today() - period("1 day")), 
+                                         value = c(min(coronavirus$date), (today() - period("1 day"))),
                                          animate = animationOptions(interval = 500, loop = FALSE)
                              ),
                       ),
@@ -107,6 +107,9 @@ body <- dashboardBody(
            ),
            
            tabPanel(title = "Mortality",
+                    tags$head(tags$style(type = "text/css", "#mortality_graph {height:600px !important;}
+                                                  #raw_data {height:600px !important;}
+                                                  ")),
                     sliderInput("date_3", label = "Select Date",
                                 min = min(coronavirus$date), max = max(coronavirus$date), 
                                 value = max(coronavirus$date),
@@ -309,13 +312,13 @@ server <- function(input, output, session) {
   
   corona_cases_country_day_historical_data <- reactive({
     df <- corona_cases_country_day() %>% 
-      filter(date <= input$date_2, type == input$type_2, region == input$country_2) %>% 
+      filter(date >= input$date_2[1], date <= input$date_2[2], type == input$type_2, region == input$country_2) %>% 
       mutate(label = sprintf("<b>%s</b>\n%d", region, cases) %>% map(htmltools::HTML))
   })
   
   corona_cases_country_day_historical_data_compare <- reactive({
     df <- corona_cases_country_day() %>% 
-      filter(date <= input$date_2, type == input$type_2, region %in% c(input$country_2, input$country_2_compare)) %>% 
+      filter(date >= input$date_2[1], date <= input$date_2[2], type == input$type_2, region %in% c(input$country_2, input$country_2_compare)) %>% 
       mutate(label = sprintf("<b>%s</b>\n%d", region, cases) %>% map(htmltools::HTML),
              # create a factor variable to order countries consistent with input
              region = factor(region, levels = c(input$country_2, input$country_2_compare))
@@ -427,6 +430,17 @@ server <- function(input, output, session) {
                       max = max(coronavirus()$date),
                       value = max(coronavirus()$date)
     )
+    updateSliderInput(session = session, "date_2",
+                      min = min(coronavirus()$date),
+                      max = max(coronavirus()$date),
+                      value = c(min(coronavirus()$date) + period("14 days"), max(coronavirus()$date))
+    )
+    updateSliderInput(session = session, "date_3",
+                       min = min(coronavirus()$date),
+                       max = max(coronavirus()$date),
+                       value = max(coronavirus()$date)
+    )
+    
     
     updateSelectInput(session = session, "country_2", 
                       choices = region_choices(),
@@ -515,7 +529,7 @@ server <- function(input, output, session) {
   # plot of
   
   data_for_mortality_graph <- reactive({
-    corona_cases_country_day %>%
+    corona_cases_country_day() %>%
       filter(type %in% c("confirmed", "death")) %>%
       select(region, continent, date, type, cumul_cases) %>%
       spread(key = type, value = cumul_cases) %>%
@@ -532,12 +546,15 @@ server <- function(input, output, session) {
   })
     
   output$mortality_graph <- renderPlotly({
+    x_limit = reactive({max(data_for_mortality_graph()$confirmed) + 20000 })
+    
     p <- data_for_mortality_graph() %>% 
+      mutate(x_limit = max(confirmed)) %>% 
       filter(date == input$date_3) %>% 
       ggplot(aes(confirmed, mortality)) +
       geom_point(aes(size = death, col = continent,
                      text = sprintf("<b>%s</b>\nMortality Rate: %s\nConfirmed Cases: %d\nDeaths: %d", region, scales::percent(mortality, accuracy = 0.1), confirmed, death))) +
-      scale_x_log10(labels = scales::number, limits = c(1, 10^5)) +
+      scale_x_log10(labels = scales::number, limits = c(10, x_limit())) +
       scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(0, 0.15)) +
       labs(x = "Confirmed Cases", y = "Deaths / Confirmed Cases", col = "Continent") +
       theme_minimal()
