@@ -55,7 +55,7 @@ body <- dashboardBody(
                                       
                              ),
                              
-                             tabPanel(title = "Raw Data",
+                             tabPanel(title = "Table",
                                       DTOutput("raw_data")
                                       
                              )
@@ -140,22 +140,7 @@ ui <- dashboardPage(
 server <- function(input, output, session) {
   
   # get data
-  # check time elapsed since last update
-  # coronavirus <- reactive({
-  #   filename <- "input/coronavirus.RData"
-  #   update_threshold <- 60 * 60 * 6 # check for update after 6 hours (in seconds)
-  #   update_threshold <- 10
-  #   file_mtime <- file.info(filename)$mtime
-  #   current_time <- Sys.time()
-  #   # if threshold time has elapsed since last file update refresh data
-  #   if (is.na(file_mtime) | as.numeric(difftime(current_time, file_mtime)) > update_threshold) {
-  #     print("Update data source")
-  #     source("pulling raw data.R", verbose = FALSE)
-  #   }
-  #   readr::read_rds(filename)
-  # })
-
-  update_threshold <- 60 * 60 * 1000 # check for update after 1 hour (in milliseconds)
+  update_threshold <- 4 * 60 * 60 * 1000 # check for update after 4 hours (in milliseconds)
   filename <- "input/coronavirus.RData"
   coronavirus <- reactivePoll(update_threshold, session,
                        checkFunc = function() {
