@@ -207,8 +207,10 @@ server <- function(input, output, session) {
       group_by(region, continent, type) %>% 
       mutate(
         increase_prop = cases / (cumul_cases - cases),
-        increase_rate_3days = cumul_cases / lag(cumul_cases, 3) - 1,
-        doubling_time = calculate_doubling_time(increase_rate_3days, t = 3),
+        # increase_rate_3days = cumul_cases / lag(cumul_cases, 3) - 1,
+        # doubling_time = calculate_doubling_time(increase_rate_3days, t = 3),
+        increase_rate = cumul_cases / lag(cumul_cases, 1) - 1,
+        doubling_time = calculate_doubling_time(increase_rate, t = 1),
         doubling_time = ifelse(doubling_time %in% c(0, NaN, Inf), NA, doubling_time)
       ) %>% 
       ungroup()
@@ -375,10 +377,10 @@ server <- function(input, output, session) {
     # color points based on type of data
     if (input$type == "confirmed") {
       fill_color <- "#03F"
-      point_size_factor <- 10
+      point_size_factor <- 3
     } else if (input$type == "death") {
       fill_color <- "orangered"
-      point_size_factor <- 60
+      point_size_factor <- 30
     } else if (input$type == "recovered") {
       fill_color <- "darkgreen"
       point_size_factor <- 10
