@@ -203,14 +203,14 @@ server <- function(input, output, session) {
       mutate(cases_100k = 100 * cases /  pop,
              cumul_cases_100k = 100 * cumul_cases / pop
       ) %>% 
-      # calculate increase from previous day and doubling time based on 3d-interval
+      # calculate increase from previous day and doubling time based on 5d-interval
       group_by(region, continent, type) %>% 
       mutate(
         increase_prop = cases / (cumul_cases - cases),
-        # increase_rate_3days = cumul_cases / lag(cumul_cases, 3) - 1,
-        # doubling_time = calculate_doubling_time(increase_rate_3days, t = 3),
-        increase_rate = cumul_cases / lag(cumul_cases, 1) - 1,
-        doubling_time = calculate_doubling_time(increase_rate, t = 1),
+        increase_rate_ndays = cumul_cases / lag(cumul_cases, 5) - 1,
+        doubling_time = calculate_doubling_time(increase_rate_ndays, t = 5),
+        # increase_rate = cumul_cases / lag(cumul_cases, 1) - 1,
+        # doubling_time = calculate_doubling_time(increase_rate, t = 1),
         doubling_time = ifelse(doubling_time %in% c(0, NaN, Inf), NA, doubling_time)
       ) %>% 
       ungroup()
@@ -329,12 +329,12 @@ server <- function(input, output, session) {
     
     if (input$relative_to_pop) {
       df <- df %>% 
-        select(`Country` = region, `Total Cases`= cumul_cases_100k, `Increase (n)` = cases, 
+        select(`Country` = region, `Total Cases`= cumul_cases_100k, `Increase (Cases)` = cases, 
                `Increase (%)` = increase_prop,
                `Doubling Time (Days)` = doubling_time, increase_prop_2)
     } else {
       df <- df %>% 
-      select(`Country` = region, `Total Cases`= cumul_cases, `Increase (n)` = cases, 
+      select(`Country` = region, `Total Cases`= cumul_cases, `Increase (Cases)` = cases, 
              `Increase (%)` = increase_prop,
              `Doubling Time (Days)` = doubling_time, increase_prop_2)
     }
@@ -342,7 +342,7 @@ server <- function(input, output, session) {
       select(-increase_prop_2) %>% 
       datatable() %>% 
       formatPercentage("Increase (%)") %>% 
-      formatRound(c("Total Cases", "Increase (n)"), digits = 0) %>% 
+      formatRound(c("Total Cases", "Increase (Cases)"), digits = 0) %>% 
       formatRound(c("Doubling Time (Days)"), digits = 1) %>% 
       formatStyle(
         "Increase (%)",
@@ -353,7 +353,7 @@ server <- function(input, output, session) {
       ) %>% 
       formatStyle(
         "Doubling Time (Days)",
-        color = styleInterval(c(7, 14), c("red", "black", "green"))
+        color = styleInterval(c(14, 21), c("red", "black", "green"))
       ) %>% 
       formatStyle(
         "Total Cases",
