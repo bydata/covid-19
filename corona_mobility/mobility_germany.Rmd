@@ -1,7 +1,7 @@
 ---
 title: "Mobility in Germany in Times of Coronavirus"
 author: "Ansgar Wolsing"
-date: "25 4 2020"
+date: "30 4 2020"
 output: github_document
 ---
 
@@ -69,7 +69,7 @@ plot_region <- function(x, filter_activity = "any", add_smooth = TRUE, df = mob_
   }
   p <- df %>% 
     ggplot(aes(date, change)) +
-    geom_line(alpha = 0.5) +
+    geom_area(alpha = 0.1, fill = "grey50") +
     labs(x = NULL, y = NULL) +
     theme_minimal()
   if (add_smooth){
@@ -99,16 +99,15 @@ ger_states <- distinct(mob_ger_long, sub_region_1) %>% pull(sub_region_1)
 
 
 ```{r message=FALSE, fig.height=9}
-# p1 <- plot_region("Bavaria", "retail_and_recreation")
-# p2 <- plot_region("North Rhine-Westphalia", "retail_and_recreation")
-# 
-# p1 / p2
-
 
 plot_region("country-wide", "any")
 
+```
 
-plot_region(c("Bavaria", "North Rhine-Westphalia"), c("workplaces", "retail_and_recreation", "residential"))
+
+```{r message=FALSE, fig.height=15}
+
+#plot_region(c("Bavaria", "North Rhine-Westphalia"), c("workplaces", "retail_and_recreation", "residential"))
 plot_region(c("Bavaria", "North Rhine-Westphalia"), "any")
 
 
