@@ -59,9 +59,11 @@ The dataset contains information on federal state-level and for Germany as a who
 
 
 ```{r message=FALSE}
-plot_region <- function(x, filter_activity = "any", add_smooth = TRUE, df = mob_ger_long) {
+plot_region <- function(x, country = "Germany", filter_activity = "any", add_smooth = TRUE, df = mob_ger_long) {
   df <- df %>% 
-    filter(sub_region_1 %in% x)
+    filter(country_region %in% country) %>% 
+    filter(sub_region_1 %in% x) %>% 
+    mutate(activity = str_replace_all(activity, "_", " ") %>% str_to_title())
   
   if (filter_activity != "any") {
     df <- df %>% 
@@ -76,13 +78,15 @@ plot_region <- function(x, filter_activity = "any", add_smooth = TRUE, df = mob_
     p <- p +
       geom_smooth(se = FALSE, method = "loess", span = 0.25, col = "darkgreen")
   }
-  if (length(filter_activity) > 1 | filter_activity == "any") {
+  if (length(country) > 1) {
+    p <- p + facet_grid(activity ~ country_region)
+  } else if (length(filter_activity) > 1 | filter_activity == "any") {
      p <- p + facet_grid(activity ~ sub_region_1)
   } else if (filter_activity == "any") {
     p <- p + facet_wrap(vars(activity))
   } else if (length(x) > 1) {
     p <- p + facet_wrap(vars(sub_region_1), ncol = 1)
-  }
+  } 
   p
 }
 
@@ -100,7 +104,7 @@ ger_states <- distinct(mob_ger_long, sub_region_1) %>% pull(sub_region_1)
 
 ```{r message=FALSE, fig.height=9}
 
-plot_region("country-wide", "any")
+plot_region("country-wide", filter_activity = "any")
 
 ```
 
@@ -108,9 +112,15 @@ plot_region("country-wide", "any")
 ```{r message=FALSE, fig.height=15}
 
 #plot_region(c("Bavaria", "North Rhine-Westphalia"), c("workplaces", "retail_and_recreation", "residential"))
-plot_region(c("Bavaria", "North Rhine-Westphalia"), "any")
+plot_region(c("Bavaria", "North Rhine-Westphalia"), filter_activity = "any")
 
 
 ```
 
+
+```{r message=FALSE, fig.height=15}
+
+plot_region("country-wide", country = c("Germany", "Italy", "United States"), filter_activity = "any",  df = mob_long)
+
+```
 
