@@ -90,7 +90,8 @@ plot_caption <- glue::glue("Bestätigte Fälle geglättet (loess, bandwidth: {lo
 # place arrow based on max date in the dataset
 max_date <- max(germany$date)
 arrow_position_x <- max_date + period(4, "days")
-
+# define y position from projected cases from Merkel's estimation
+arrow_position_y <- merkel_daily$cases_proj[merkel_daily$date == arrow_position_x] + 600
 
 p <- p + 
   # draw Merkel's projection
@@ -105,7 +106,7 @@ p <- p +
   # draw an arrow to highlight the difference between projection and actuals
   # move this as 
   annotate("segment", x = arrow_position_x, xend = arrow_position_x,
-           y = 5350, yend = 12000, col = "grey20",
+           y = arrow_position_y, yend = 12000, col = "grey20",
            arrow = arrow(angle = 90, ends = "both", type = "open", length = unit(1.5, "mm"))) +
   colorspace::scale_color_discrete_diverging() +
   guides(lty = FALSE) +
