@@ -1,9 +1,10 @@
 library(tidyverse)
 library(ggtext)
 library(lubridate)
+library(myggthemes)
+
 devtools::install_github("RamiKrispin/coronavirus")
 library(coronavirus)
-library(myggthemes)
 
 data(coronavirus)
 glimpse(coronavirus)
@@ -14,6 +15,7 @@ germany <- coronavirus %>%
   filter(country == "Germany", type == "confirmed") %>% 
   filter(date >= as_date("2020-06-15"))
 
+max(germany$date)
 
 theme_set(theme_clean_lightbg())
 
@@ -85,6 +87,11 @@ plot_caption <- glue::glue("Bestätigte Fälle geglättet (loess, bandwidth: {lo
                            Quelle: @4nsgarW. Daten: Johns Hopkins University.")
 
 
+# place arrow based on max date in the dataset
+max_date <- max(germany$date)
+arrow_position_x <- max_date + period(4, "days")
+
+
 p <- p + 
   # draw Merkel's projection
   geom_line(data = merkel_daily, 
@@ -96,9 +103,10 @@ p <- p +
            hjust = 0, family = "Inconsolata",
            col = colors[2]) +
   # draw an arrow to highlight the difference between projection and actuals
-  annotate("segment", x = as_date("2020-10-28"), xend = as_date("2020-10-28"),
-           y = 5100, yend = 12000, col = "grey20",
-           arrow = arrow(ends = "both", type = "open", length = unit(2, "mm"))) +
+  # move this as 
+  annotate("segment", x = arrow_position_x, xend = arrow_position_x,
+           y = 5350, yend = 12000, col = "grey20",
+           arrow = arrow(angle = 90, ends = "both", type = "open", length = unit(1.5, "mm"))) +
   colorspace::scale_color_discrete_diverging() +
   guides(lty = FALSE) +
   labs(title = sprintf("Die <span style='color:%s'>Realität</span> überholt
